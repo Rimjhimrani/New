@@ -51,11 +51,60 @@ def find_column(df, possible_names):
 
     return None
 
-def create_instor_logo():
-    """Create Instor logo image for PDF"""
+def create_instor_logo_from_url():
+    """Download and process Instor logo from URL for PDF"""
     try:
-        # Create a simple Instor logo using PIL
-        logo_img = PILImage.new('RGB', (120, 40), color='white')
+        # Download the logo from the URL
+        logo_url = "https://www.instorindia.com/wp-content/themes/InstorIndia/images/logo.png"
+        response = requests.get(logo_url)
+        
+        if response.status_code == 200:
+            # Load image from response content
+            logo_img = PILImage.open(BytesIO(response.content))
+            
+            # Convert to RGB if necessary
+            if logo_img.mode in ('RGBA', 'LA', 'P'):
+                # Create white background
+                background = PILImage.new('RGB', logo_img.size, (255, 255, 255))
+                if logo_img.mode == 'P':
+                    logo_img = logo_img.convert('RGBA')
+                background.paste(logo_img, mask=logo_img.split()[-1] if logo_img.mode in ('RGBA', 'LA') else None)
+                logo_img = background
+            
+            # Resize logo to appropriate size for label
+            logo_img = logo_img.resize((120, 40), PILImage.Resampling.LANCZOS)
+            
+            # Convert to bytes for ReportLab
+            img_buffer = BytesIO()
+            logo_img.save(img_buffer, format='PNG')
+            img_buffer.seek(0)
+            
+            return Image(img_buffer, width=2*cm, height=0.8*cm)
+        else:
+            st.warning("Could not download logo from URL. Using placeholder.")
+            return None
+            
+    except Exception as e:
+        st.warning(f"Error loading logo from URL: {e}. Using placeholder.")
+        return None
+
+def create_instor_logo_from_upload(uploaded_logo):
+    """Create Instor logo image for PDF from uploaded file"""
+    try:
+        # Load image from uploaded file
+        logo_img = PILImage.open(uploaded_logo)
+        
+        # Convert to RGB if necessary
+        if logo_img.mode in ('RGBA', 'LA', 'P'):
+            # Create white background
+            background = PILImage.new('RGB', logo_img.size, (255, 255, 255))
+            if logo_img.mode == 'P':
+                logo_img = logo_img.convert('RGBA')
+            background.paste(logo_img, mask=logo_img.split()[-1] if logo_img.mode in ('RGBA', 'LA') else None)
+            logo_img = background
+        
+        # Resize logo to appropriate size for label
+        logo_img = logo_img.resize((120, 40), PILImage.Resampling.LANCZOS)
         
         # Convert to bytes for ReportLab
         img_buffer = BytesIO()
@@ -64,7 +113,7 @@ def create_instor_logo():
         
         return Image(img_buffer, width=2*cm, height=0.8*cm)
     except Exception as e:
-        st.error(f"Error creating logo: {e}")
+        st.error(f"Error processing uploaded logo: {e}")
         return None
 
 def generate_qr_code(data_string):
@@ -104,7 +153,8 @@ def parse_line_location(location_string):
     return result[:4]
 
 def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width, 
-                          line_loc_box2_width, line_loc_box3_width, line_loc_box4_width):
+                          line_loc_box2_width, line_loc_box3_width, line_loc_box4_width, 
+                          uploaded_logo=None):
     """Generate sticker labels with QR code and logo from DataFrame"""
     try:
         # Define column mappings
@@ -179,8 +229,13 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
         all_elements = []
         today_date = datetime.datetime.now().strftime("%d-%m-%Y")
 
-        # Create logo
-        instor_logo = create_instor_logo()
+        # Create logo - try uploaded logo first, then URL, then placeholder
+        instor_logo = None
+        if uploaded_logo is not None:
+            instor_logo = create_instor_logo_from_upload(uploaded_logo)
+        
+        if instor_logo is None:
+            instor_logo = create_instor_logo_from_url()
 
         # Process each row
         total_rows = len(df)
@@ -243,10 +298,10 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
                 ["LINE LOCATION", location_box_1, location_box_2, location_box_3, location_box_4]
             ]
 
-            # Create different column widths for different sections
-            col_widths_assly = [content_width*0.2, content_width*0.3, content_width*0.5]  # Logo, Header, Value
-            col_widths_top = [content_width*0.3, content_width*0.7]                      # Regular 2-column rows
-            col_widths_middle = [content_width*0.3, content_width*0.3, content_width*0.4] # 3-column with QR
+            # Adjusted column widths for ASSLY row - decreased header width, increased value width
+            col_widths_assly = [content_width*0.2, content_width*0.25, content_width*0.55]  # Logo, Header (decreased from 0.3 to 0.25), Value (increased from 0.5 to 0.55)
+            col_widths_top = [content_width*0.3, content_width*0.7]                        # Regular 2-column rows
+            col_widths_middle = [content_width*0.3, content_width*0.3, content_width*0.4]   # 3-column with QR
             col_widths_bottom = [
                 content_width * line_loc_header_width,
                 content_width * line_loc_box1_width,
@@ -379,6 +434,15 @@ def main():
     
     # Sidebar for configuration
     st.sidebar.header("Configuration")
+    
+    # Logo upload section
+    st.sidebar.markdown("### Logo Upload")
+    uploaded_logo = st.sidebar.file_uploader(
+        "Upload Logo (optional)",
+        type=['png', 'jpg', 'jpeg'],
+        help="Upload a logo image to use in the labels. If not provided, will try to download from Instor website."
+    )
+    
     st.sidebar.markdown("### Line Location Box Widths")
     st.sidebar.caption("(proportional values)")
     
@@ -457,6 +521,12 @@ def main():
                 else:
                     st.success("✅ All required columns found!")
                     
+                    # Show logo status
+                    if uploaded_logo is not None:
+                        st.info("🖼️ Custom logo uploaded and will be used in labels")
+                    else:
+                        st.info("🔗 Will attempt to download logo from Instor website")
+                    
                     # Preview sample data
                     with st.expander("👀 Sample Data Preview", expanded=False):
                         sample_data = []
@@ -468,67 +538,55 @@ def main():
                         
                         st.dataframe(pd.DataFrame(sample_data))
                     
-                    # Generate PDF button
-                    if st.button("🔄 Generate PDF Labels", type="primary", use_container_width=True):
-                        with st.spinner("Generating PDF... Please wait"):
+                    # Generate PDF
+                    if st.button("🏷️ Generate Labels", type="primary", use_container_width=True):
+                        with st.spinner("Generating labels..."):
                             pdf_bytes, found_cols = generate_sticker_labels(
-                                df, header_width, box1_width, box2_width, box3_width, box4_width
+                                df, 
+                                header_width, 
+                                box1_width, 
+                                box2_width, 
+                                box3_width, 
+                                box4_width,
+                                uploaded_logo
                             )
                             
                             if pdf_bytes:
-                                st.success("🎉 PDF generated successfully!")
+                                st.success("✅ Labels generated successfully!")
                                 
-                                # Create download button
-                                filename = f"sticker_labels_{uploaded_file.name.split('.')[0]}.pdf"
+                                # Download button
+                                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                                filename = f"instor_labels_{timestamp}.pdf"
+                                
                                 st.download_button(
                                     label="📥 Download PDF",
                                     data=pdf_bytes,
                                     file_name=filename,
                                     mime="application/pdf",
+                                    type="secondary",
                                     use_container_width=True
                                 )
+                                
+                                st.info(f"📊 Generated {len(df)} labels")
                             else:
-                                st.error("❌ Failed to generate PDF. Please check your data and try again.")
+                                st.error("❌ Failed to generate labels")
             
             except Exception as e:
-                st.error(f"❌ Error loading file: {str(e)}")
-        
+                st.error(f"❌ Error loading file: {e}")
         else:
             st.info("👆 Please upload a file to get started")
     
-    # Instructions
+    # Footer
     st.markdown("---")
-    st.header("📖 Instructions")
-    
-    instructions_col1, instructions_col2 = st.columns(2)
-    
-    with instructions_col1:
-        st.markdown("""
-        ### 📋 Required Columns
-        Your file must contain these columns (case-insensitive):
-        - **Assembly** (ASSLY, Assembly Name, etc.)
-        - **Part Number** (PARTNO, Part No, Item Number, etc.)
-        - **Description** (DESCRIPTION, Part Description, etc.)
-        """)
-    
-    with instructions_col2:
-        st.markdown("""
-        ### 📋 Optional Columns
-        These columns will be included if found:
-        - **Quantity per Vehicle** (QTY/VEH, Bin Quantity, etc.)
-        - **Type** (TYPE, Type name, etc.)
-        - **Line Location** (LINE LOCATION, Line Loc, etc.)
-        """)
-    
-    st.markdown("""
-    ### 🎯 Features
-    - **QR Code Generation**: Each label includes a QR code with all relevant information
-    - **Instor Logo**: Company logo included in ASSLY section
-    - **3-Box ASSLY Structure**: Logo, Header, and Value in separate boxes
-    - **Flexible Column Mapping**: Automatically detects various column name formats
-    - **Customizable Layout**: Adjust line location box widths via sidebar
-    - **Professional Format**: Ready-to-print PDF labels with proper formatting
-    """)
+    st.markdown(
+        """
+        <div style='text-align: center; color: #666; padding: 20px;'>
+            <p>🏷️ <strong>Instor Label Generator</strong></p>
+            <p>Generate professional labels with QR codes from your Excel/CSV data</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 if __name__ == "__main__":
     main()
