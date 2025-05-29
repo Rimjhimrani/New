@@ -7,6 +7,7 @@ from io import BytesIO
 import tempfile
 import requests
 from PIL import Image as PILImage
+import base64
 
 # ReportLab imports for PDF generation
 from reportlab.lib.pagesizes import landscape
@@ -51,41 +52,44 @@ def find_column(df, possible_names):
 
     return None
 
-def create_instor_logo_from_url():
-    """Download and process Instor logo from URL for PDF"""
+def create_instor_logo_embedded():
+    """Create Instor logo using embedded base64 data"""
     try:
-        # Download the logo from the URL
-        logo_url = "https://www.instorindia.com/wp-content/themes/InstorIndia/images/logo.png"
-        response = requests.get(logo_url)
+        # Base64 encoded Instor logo (you'll need to replace this with your actual logo's base64)
+        # This is a placeholder - you'll need to convert your logo to base64
+        logo_base64 = """
+        iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==
+        """
         
-        if response.status_code == 200:
-            # Load image from response content
-            logo_img = PILImage.open(BytesIO(response.content))
-            
-            # Convert to RGB if necessary
-            if logo_img.mode in ('RGBA', 'LA', 'P'):
-                # Create white background
-                background = PILImage.new('RGB', logo_img.size, (255, 255, 255))
-                if logo_img.mode == 'P':
-                    logo_img = logo_img.convert('RGBA')
-                background.paste(logo_img, mask=logo_img.split()[-1] if logo_img.mode in ('RGBA', 'LA') else None)
-                logo_img = background
-            
-            # Resize logo to appropriate size for label
-            logo_img = logo_img.resize((120, 40), PILImage.Resampling.LANCZOS)
-            
-            # Convert to bytes for ReportLab
-            img_buffer = BytesIO()
-            logo_img.save(img_buffer, format='PNG')
-            img_buffer.seek(0)
-            
-            return Image(img_buffer, width=2*cm, height=0.8*cm)
-        else:
-            st.warning("Could not download logo from URL. Using placeholder.")
-            return None
-            
+        # For now, we'll create a simple text placeholder
+        # You can replace this with your actual logo base64 data
+        from reportlab.graphics.shapes import Drawing, String
+        from reportlab.graphics import renderPDF
+        from reportlab.graphics.renderPDF import drawToString
+        
+        # Create a simple text logo as placeholder
+        # Replace this section with your actual logo processing
+        img_buffer = BytesIO()
+        
+        # Create a simple logo using ReportLab graphics
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.colors import blue, orange
+        
+        # Create a temporary canvas to draw the logo
+        logo_canvas = canvas.Canvas(img_buffer, pagesize=(120, 40))
+        logo_canvas.setFillColor(blue)
+        logo_canvas.setFont("Helvetica-Bold", 12)
+        logo_canvas.drawString(5, 20, "instor")
+        logo_canvas.setFillColor(orange)
+        logo_canvas.rect(0, 0, 20, 5, fill=1)
+        logo_canvas.rect(0, 35, 20, 5, fill=1)
+        logo_canvas.save()
+        
+        img_buffer.seek(0)
+        return Image(img_buffer, width=2*cm, height=0.8*cm)
+        
     except Exception as e:
-        st.warning(f"Error loading logo from URL: {e}. Using placeholder.")
+        st.warning(f"Error creating embedded logo: {e}")
         return None
 
 def create_instor_logo_from_upload(uploaded_logo):
@@ -229,13 +233,15 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
         all_elements = []
         today_date = datetime.datetime.now().strftime("%d-%m-%Y")
 
-        # Create logo - try uploaded logo first, then URL, then placeholder
+        # Create logo - prioritize uploaded logo, then use embedded version
         instor_logo = None
         if uploaded_logo is not None:
             instor_logo = create_instor_logo_from_upload(uploaded_logo)
+            st.success("✅ Using your uploaded logo in labels")
         
         if instor_logo is None:
-            instor_logo = create_instor_logo_from_url()
+            instor_logo = create_instor_logo_embedded()
+            st.info("ℹ️ Using default Instor logo design")
 
         # Process each row
         total_rows = len(df)
@@ -429,19 +435,26 @@ def main():
     st.title("🏷️ INSTOR LABEL GENERATOR")
     st.markdown("---")
     
-    # Display Instor logo in sidebar
-    st.sidebar.image("https://www.instorindia.com/wp-content/themes/InstorIndia/images/logo.png", width=200)
+    # Display the Instor logo in sidebar using the uploaded image
+    logo_placeholder = st.sidebar.empty()
     
     # Sidebar for configuration
     st.sidebar.header("Configuration")
     
-    # Logo upload section
-    st.sidebar.markdown("### Logo Upload")
+    # Logo upload section - moved to top for better visibility
+    st.sidebar.markdown("### 🖼️ Logo Upload")
     uploaded_logo = st.sidebar.file_uploader(
-        "Upload Logo (optional)",
+        "Upload your Instor Logo",
         type=['png', 'jpg', 'jpeg'],
-        help="Upload a logo image to use in the labels. If not provided, will try to download from Instor website."
+        help="Upload your Instor logo image to use in the labels"
     )
+    
+    # Display uploaded logo in sidebar
+    if uploaded_logo is not None:
+        logo_placeholder.image(uploaded_logo, width=200, caption="Your Logo (will be used in labels)")
+        st.sidebar.success("✅ Logo uploaded - will be used in labels")
+    else:
+        st.sidebar.info("📁 Please upload your Instor logo above")
     
     st.sidebar.markdown("### Line Location Box Widths")
     st.sidebar.caption("(proportional values)")
@@ -523,24 +536,17 @@ def main():
                     
                     # Show logo status
                     if uploaded_logo is not None:
-                        st.info("🖼️ Custom logo uploaded and will be used in labels")
+                        st.success("🖼Custom logo will be used in labels")
                     else:
-                        st.info("🔗 Will attempt to download logo from Instor website")
+                        st.info("🖼️ Default Instor logo design will be used")
                     
-                    # Preview sample data
-                    with st.expander("👀 Sample Data Preview", expanded=False):
-                        sample_data = []
-                        for i, (index, row) in enumerate(df.head(3).iterrows()):
-                            row_data = {}
-                            for key, col in found_columns.items():
-                                row_data[key] = str(row[col]) if col in df.columns else "N/A"
-                            sample_data.append(row_data)
-                        
-                        st.dataframe(pd.DataFrame(sample_data))
+                    # Preview data
+                    with st.expander("👀 Data Preview", expanded=False):
+                        st.dataframe(df.head(10))
                     
-                    # Generate PDF
+                    # Generate labels button
                     if st.button("🏷️ Generate Labels", type="primary", use_container_width=True):
-                        with st.spinner("Generating labels..."):
+                        with st.spinner("Generating labels... Please wait"):
                             pdf_bytes, found_cols = generate_sticker_labels(
                                 df, 
                                 header_width, 
@@ -554,25 +560,33 @@ def main():
                             if pdf_bytes:
                                 st.success("✅ Labels generated successfully!")
                                 
-                                # Download button
+                                # Create download button
                                 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
                                 filename = f"instor_labels_{timestamp}.pdf"
                                 
                                 st.download_button(
-                                    label="📥 Download PDF",
+                                    label="📥 Download Labels PDF",
                                     data=pdf_bytes,
                                     file_name=filename,
                                     mime="application/pdf",
-                                    type="secondary",
+                                    type="primary",
                                     use_container_width=True
                                 )
                                 
+                                # Show generation summary
                                 st.info(f"📊 Generated {len(df)} labels")
+                                
+                                # Show found columns summary
+                                with st.expander("📋 Generation Summary", expanded=False):
+                                    st.write("**Columns used:**")
+                                    for key, col in found_cols.items():
+                                        st.write(f"- {key}: {col}")
                             else:
-                                st.error("❌ Failed to generate labels")
+                                st.error("❌ Failed to generate labels. Please check your file format and try again.")
             
             except Exception as e:
-                st.error(f"❌ Error loading file: {e}")
+                st.error(f"❌ Error loading file: {str(e)}")
+                st.info("Please make sure your file is a valid Excel (.xlsx, .xls) or CSV file.")
         else:
             st.info("👆 Please upload a file to get started")
     
@@ -580,11 +594,11 @@ def main():
     st.markdown("---")
     st.markdown(
         """
-        <div style='text-align: center; color: #666; padding: 20px;'>
-            <p>🏷️ <strong>Instor Label Generator</strong></p>
-            <p>Generate professional labels with QR codes from your Excel/CSV data</p>
+        <div style='text-align: center; color: gray; font-size: 0.8em;'>
+            🏷️ Instor Label Generator | Built with Streamlit | 
+            Supports Excel and CSV files with QR codes and custom logos
         </div>
-        """,
+        """, 
         unsafe_allow_html=True
     )
 
