@@ -55,12 +55,6 @@ def find_column(df, possible_names):
 def create_instor_logo_embedded():
     """Create Instor logo using embedded base64 data"""
     try:
-        # Base64 encoded Instor logo (you'll need to replace this with your actual logo's base64)
-        # This is a placeholder - you'll need to convert your logo to base64
-        logo_base64 = """
-        iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==
-        """
-        
         # For now, we'll create a simple text placeholder
         # You can replace this with your actual logo base64 data
         from reportlab.graphics.shapes import Drawing, String
@@ -435,27 +429,35 @@ def main():
     st.title("🏷️ INSTOR LABEL GENERATOR")
     st.markdown("---")
     
-    # Display the Instor logo in sidebar using the uploaded image
-    logo_placeholder = st.sidebar.empty()
+    # Main content - both logo and file upload in the main area
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.header("🖼️ Logo Upload")
+        uploaded_logo = st.file_uploader(
+            "Upload your Instor Logo (will be used in labels)",
+            type=['png', 'jpg', 'jpeg'],
+            help="Upload your Instor logo image to use in all generated labels"
+        )
+        
+        # Display uploaded logo
+        if uploaded_logo is not None:
+            st.image(uploaded_logo, width=300, caption="Your Instor Logo")
+            st.success("✅ Logo uploaded successfully - will be used in all labels")
+        else:
+            st.info("📁 Please upload your Instor logo above")
+            st.caption("If no logo is uploaded, a default Instor design will be used")
+    
+    with col2:
+        st.header("📁 Data File Upload")
+        uploaded_file = st.file_uploader(
+            "Choose an Excel or CSV file",
+            type=['xlsx', 'xls', 'csv'],
+            help="Upload your data file containing label information"
+        )
     
     # Sidebar for configuration
     st.sidebar.header("Configuration")
-    
-    # Logo upload section - moved to top for better visibility
-    st.sidebar.markdown("### 🖼️ Logo Upload")
-    uploaded_logo = st.sidebar.file_uploader(
-        "Upload your Instor Logo",
-        type=['png', 'jpg', 'jpeg'],
-        help="Upload your Instor logo image to use in the labels"
-    )
-    
-    # Display uploaded logo in sidebar
-    if uploaded_logo is not None:
-        logo_placeholder.image(uploaded_logo, width=200, caption="Your Logo (will be used in labels)")
-        st.sidebar.success("✅ Logo uploaded - will be used in labels")
-    else:
-        st.sidebar.info("📁 Please upload your Instor logo above")
-    
     st.sidebar.markdown("### Line Location Box Widths")
     st.sidebar.caption("(proportional values)")
     
@@ -465,142 +467,134 @@ def main():
     box3_width = st.sidebar.number_input("Box 3 Width", value=0.15, step=0.01, format="%.2f")
     box4_width = st.sidebar.number_input("Box 4 Width", value=0.1, step=0.01, format="%.2f")
     
-    # Main content
-    col1, col2 = st.columns([1, 1])
+    # Processing section
+    st.markdown("---")
+    st.header("📋 Preview & Generate")
     
-    with col1:
-        st.header("📁 File Upload")
-        uploaded_file = st.file_uploader(
-            "Choose an Excel or CSV file",
-            type=['xlsx', 'xls', 'csv'],
-            help="Upload your data file containing label information"
-        )
-    
-    with col2:
-        st.header("📋 Preview & Generate")
-        
-        if uploaded_file is not None:
-            try:
-                # Load the data
-                if uploaded_file.name.lower().endswith('.csv'):
-                    df = pd.read_csv(uploaded_file)
+    if uploaded_file is not None:
+        try:
+            # Load the data
+            if uploaded_file.name.lower().endswith('.csv'):
+                df = pd.read_csv(uploaded_file)
+            else:
+                df = pd.read_excel(uploaded_file)
+            
+            st.success(f"✅ File loaded successfully! ({len(df)} rows)")
+            
+            # Show file info
+            with st.expander("📊 File Information", expanded=False):
+                st.write(f"**Total rows:** {len(df)}")
+                st.write(f"**Columns:** {list(df.columns)}")
+            
+            # Find columns
+            column_mappings = {
+                'ASSLY': ['assly', 'ASSY NAME', 'Assy Name', 'assy name', 'assyname',
+                         'assy_name', 'Assy_name', 'Assembly', 'Assembly Name', 'ASSEMBLY', 'Assembly_Name'],
+                'part_no': ['PARTNO', 'PARTNO.', 'Part No', 'Part Number', 'PartNo',
+                           'partnumber', 'part no', 'partnum', 'PART', 'part', 'Product Code',
+                           'Item Number', 'Item ID', 'Item No', 'item', 'Item'],
+                'description': ['DESCRIPTION', 'Description', 'Desc', 'Part Description',
+                               'ItemDescription', 'item description', 'Product Description',
+                               'Item Description', 'NAME', 'Item Name', 'Product Name'],
+                'Part_per_veh': ['QYT', 'QTY / VEH', 'Qty/Veh', 'Qty Bin', 'Quantity per Bin',
+                                'qty bin', 'qtybin', 'quantity bin', 'BIN QTY', 'BINQTY',
+                                'QTY_BIN', 'QTY_PER_BIN', 'Bin Quantity', 'BIN'],
+                'Type': ['TYPE', 'type', 'Type', 'tyPe', 'Type name'],
+                'line_location': ['LINE LOCATION', 'Line Location', 'line location', 'LINELOCATION',
+                                 'linelocation', 'Line_Location', 'line_location', 'LINE_LOCATION',
+                                 'LineLocation', 'line_loc', 'lineloc', 'LINELOC', 'Line Loc']
+            }
+            
+            found_columns = {}
+            for key, possible_names in column_mappings.items():
+                found_col = find_column(df, possible_names)
+                if found_col:
+                    found_columns[key] = found_col
+            
+            # Show column mappings
+            with st.expander("🔍 Column Mappings", expanded=False):
+                for key, col in found_columns.items():
+                    st.write(f"**{key}:** {col}")
+            
+            # Check for required columns
+            required_columns = ['ASSLY', 'part_no', 'description']
+            missing_required = [col for col in required_columns if col not in found_columns]
+            
+            if missing_required:
+                st.error(f"⚠️ Missing required columns: {missing_required}")
+                st.info("Please ensure your file contains columns for Assembly, Part Number, and Description")
+            else:
+                st.success("✅ All required columns found!")
+                
+                # Show logo status
+                if uploaded_logo is not None:
+                    st.success("🖼️ Custom logo will be used in labels")
                 else:
-                    df = pd.read_excel(uploaded_file)
+                    st.info("🖼️ Default Instor logo design will be used")
                 
-                st.success(f"✅ File loaded successfully! ({len(df)} rows)")
+                # Preview data
+                with st.expander("👀 Data Preview", expanded=False):
+                    st.dataframe(df.head(10))
                 
-                # Show file info
-                with st.expander("📊 File Information", expanded=False):
-                    st.write(f"**Total rows:** {len(df)}")
-                    st.write(f"**Columns:** {list(df.columns)}")
-                
-                # Find columns
-                column_mappings = {
-                    'ASSLY': ['assly', 'ASSY NAME', 'Assy Name', 'assy name', 'assyname',
-                             'assy_name', 'Assy_name', 'Assembly', 'Assembly Name', 'ASSEMBLY', 'Assembly_Name'],
-                    'part_no': ['PARTNO', 'PARTNO.', 'Part No', 'Part Number', 'PartNo',
-                               'partnumber', 'part no', 'partnum', 'PART', 'part', 'Product Code',
-                               'Item Number', 'Item ID', 'Item No', 'item', 'Item'],
-                    'description': ['DESCRIPTION', 'Description', 'Desc', 'Part Description',
-                                   'ItemDescription', 'item description', 'Product Description',
-                                   'Item Description', 'NAME', 'Item Name', 'Product Name'],
-                    'Part_per_veh': ['QYT', 'QTY / VEH', 'Qty/Veh', 'Qty Bin', 'Quantity per Bin',
-                                    'qty bin', 'qtybin', 'quantity bin', 'BIN QTY', 'BINQTY',
-                                    'QTY_BIN', 'QTY_PER_BIN', 'Bin Quantity', 'BIN'],
-                    'Type': ['TYPE', 'type', 'Type', 'tyPe', 'Type name'],
-                    'line_location': ['LINE LOCATION', 'Line Location', 'line location', 'LINELOCATION',
-                                     'linelocation', 'Line_Location', 'line_location', 'LINE_LOCATION',
-                                     'LineLocation', 'line_loc', 'lineloc', 'LINELOC', 'Line Loc']
-                }
-                
-                found_columns = {}
-                for key, possible_names in column_mappings.items():
-                    found_col = find_column(df, possible_names)
-                    if found_col:
-                        found_columns[key] = found_col
-                
-                # Show column mappings
-                with st.expander("🔍 Column Mappings", expanded=False):
-                    for key, col in found_columns.items():
-                        st.write(f"**{key}:** {col}")
-                
-                # Check for required columns
-                required_columns = ['ASSLY', 'part_no', 'description']
-                missing_required = [col for col in required_columns if col not in found_columns]
-                
-                if missing_required:
-                    st.error(f"⚠️ Missing required columns: {missing_required}")
-                    st.info("Please ensure your file contains columns for Assembly, Part Number, and Description")
-                else:
-                    st.success("✅ All required columns found!")
-                    
-                    # Show logo status
-                    if uploaded_logo is not None:
-                        st.success("🖼Custom logo will be used in labels")
-                    else:
-                        st.info("🖼️ Default Instor logo design will be used")
-                    
-                    # Preview data
-                    with st.expander("👀 Data Preview", expanded=False):
-                        st.dataframe(df.head(10))
-                    
-                    # Generate labels button
-                    if st.button("🏷️ Generate Labels", type="primary", use_container_width=True):
-                        with st.spinner("Generating labels... Please wait"):
-                            pdf_bytes, found_cols = generate_sticker_labels(
-                                df, 
-                                header_width, 
-                                box1_width, 
-                                box2_width, 
-                                box3_width, 
-                                box4_width,
-                                uploaded_logo
+                # Generate labels button
+                if st.button("🏷️ Generate Labels", type="primary", use_container_width=True):
+                    with st.spinner("Generating labels... Please wait"):
+                        pdf_bytes, found_cols = generate_sticker_labels(
+                            df, 
+                            header_width, 
+                            box1_width, 
+                            box2_width, 
+                            box3_width,
+                            box4_width,
+                            uploaded_logo
+                        )
+                        
+                        if pdf_bytes:
+                            st.success("✅ Labels generated successfully!")
+                            
+                            # Create download button
+                            current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                            filename = f"instor_labels_{current_time}.pdf"
+                            
+                            st.download_button(
+                                label="📥 Download PDF Labels",
+                                data=pdf_bytes,
+                                file_name=filename,
+                                mime="application/pdf",
+                                use_container_width=True
                             )
                             
-                            if pdf_bytes:
-                                st.success("✅ Labels generated successfully!")
-                                
-                                # Create download button
-                                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                                filename = f"instor_labels_{timestamp}.pdf"
-                                
-                                st.download_button(
-                                    label="📥 Download Labels PDF",
-                                    data=pdf_bytes,
-                                    file_name=filename,
-                                    mime="application/pdf",
-                                    type="primary",
-                                    use_container_width=True
-                                )
-                                
-                                # Show generation summary
-                                st.info(f"📊 Generated {len(df)} labels")
-                                
-                                # Show found columns summary
-                                with st.expander("📋 Generation Summary", expanded=False):
-                                    st.write("**Columns used:**")
+                            st.info(f"📄 Generated {len(df)} label(s)")
+                            
+                            # Show generated columns info
+                            if found_cols:
+                                with st.expander("ℹ️ Processing Summary"):
+                                    st.write("**Columns used in generation:**")
                                     for key, col in found_cols.items():
-                                        st.write(f"- {key}: {col}")
-                            else:
-                                st.error("❌ Failed to generate labels. Please check your file format and try again.")
-            
-            except Exception as e:
-                st.error(f"❌ Error loading file: {str(e)}")
-                st.info("Please make sure your file is a valid Excel (.xlsx, .xls) or CSV file.")
-        else:
-            st.info("👆 Please upload a file to get started")
+                                        st.write(f"- **{key}:** {col}")
+                        else:
+                            st.error("❌ Failed to generate labels. Please check your data and try again.")
     
-    # Footer
-    st.markdown("---")
-    st.markdown(
-        """
-        <div style='text-align: center; color: gray; font-size: 0.8em;'>
-            🏷️ Instor Label Generator | Built with Streamlit | 
-            Supports Excel and CSV files with QR codes and custom logos
-        </div>
-        """, 
-        unsafe_allow_html=True
-    )
+    else:
+        st.info("📁 Please upload an Excel or CSV file to get started")
+        
+        # Show supported formats
+        with st.expander("📋 Supported File Formats & Requirements"):
+            st.markdown("""
+            **Supported file formats:**
+            - Excel files (.xlsx, .xls)
+            - CSV files (.csv)
+            
+            **Required columns (any of these names will work):**
+            - **Assembly:** ASSLY, Assy Name, Assembly, Assembly Name, etc.
+            - **Part Number:** PARTNO, Part No, Part Number, Item Number, etc.
+            - **Description:** DESCRIPTION, Part Description, Item Description, etc.
+            
+            **Optional columns:**
+            - **Quantity:** QTY, Qty/Veh, Bin Quantity, etc.
+            - **Type:** TYPE, Type name
+            - **Line Location:** LINE LOCATION, Line_Location, etc.
+            """)
 
 if __name__ == "__main__":
     main()
