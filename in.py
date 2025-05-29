@@ -142,32 +142,34 @@ def create_instor_logo_from_upload(uploaded_logo):
         st.error(f"Error processing uploaded logo: {e}")
         return None
 
-def create_custom_image_from_upload(uploaded_image):
-    """Create custom image for first box from uploaded file"""
+def create_first_box_logo_from_upload(uploaded_first_box_logo):
+    """Create logo for first box from uploaded file - properly sized for the first box"""
     try:
         # Load image from uploaded file
-        custom_img = PILImage.open(uploaded_image)
+        first_box_img = PILImage.open(uploaded_first_box_logo)
         
         # Convert to RGB if necessary
-        if custom_img.mode in ('RGBA', 'LA', 'P'):
+        if first_box_img.mode in ('RGBA', 'LA', 'P'):
             # Create white background
-            background = PILImage.new('RGB', custom_img.size, (255, 255, 255))
-            if custom_img.mode == 'P':
-                custom_img = custom_img.convert('RGBA')
-            background.paste(custom_img, mask=custom_img.split()[-1] if custom_img.mode in ('RGBA', 'LA') else None)
-            custom_img = background
+            background = PILImage.new('RGB', first_box_img.size, (255, 255, 255))
+            if first_box_img.mode == 'P':
+                first_box_img = first_box_img.convert('RGBA')
+            background.paste(first_box_img, mask=first_box_img.split()[-1] if first_box_img.mode in ('RGBA', 'LA') else None)
+            first_box_img = background
         
-        # Resize image to appropriate size for the first box
-        custom_img = custom_img.resize((80, 60), PILImage.Resampling.LANCZOS)
+        # Resize image to fit perfectly in the first box (content_width*0.15 ≈ 1.5cm)
+        # Make it slightly smaller to fit nicely with padding
+        first_box_img = first_box_img.resize((80, 60), PILImage.Resampling.LANCZOS)
         
         # Convert to bytes for ReportLab
         img_buffer = BytesIO()
-        custom_img.save(img_buffer, format='PNG')
+        first_box_img.save(img_buffer, format='PNG')
         img_buffer.seek(0)
         
-        return Image(img_buffer, width=1.5*cm, height=1.2*cm)
+        # Size it to fit the first box perfectly
+        return Image(img_buffer, width=1.3*cm, height=1.0*cm)
     except Exception as e:
-        st.error(f"Error processing uploaded custom image: {e}")
+        st.error(f"Error processing uploaded first box logo: {e}")
         return None
 
 def generate_qr_code(data_string):
@@ -208,7 +210,7 @@ def parse_line_location(location_string):
 
 def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width, 
                           line_loc_box2_width, line_loc_box3_width, line_loc_box4_width, 
-                          uploaded_logo=None, uploaded_custom_image=None):
+                          uploaded_logo=None, uploaded_first_box_logo=None):
     """Generate sticker labels with QR code and logo from DataFrame"""
     try:
         # Define column mappings
@@ -283,21 +285,23 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
         all_elements = []
         today_date = datetime.datetime.now().strftime("%d-%m-%Y")
 
-        # Create logo - prioritize uploaded logo, then use URL version
+        # Create logo for second position (Instor logo) - prioritize uploaded logo, then use URL version
         instor_logo = None
         if uploaded_logo is not None:
             instor_logo = create_instor_logo_from_upload(uploaded_logo)
-            st.success("✅ Using your uploaded logo in labels")
+            st.success("✅ Using your uploaded Instor logo in second position")
         
         if instor_logo is None:
             instor_logo = create_instor_logo_from_url()
-            st.info("🌐 Using logo from URL")
+            st.info("🌐 Using Instor logo from URL in second position")
 
-        # Create custom image for first box
-        custom_image = None
-        if uploaded_custom_image is not None:
-            custom_image = create_custom_image_from_upload(uploaded_custom_image)
-            st.success("✅ Using your uploaded custom image in first box")
+        # Create logo for first box (your custom logo)
+        first_box_logo = None
+        if uploaded_first_box_logo is not None:
+            first_box_logo = create_first_box_logo_from_upload(uploaded_first_box_logo)
+            st.success("✅ Using your uploaded logo in first box of labels")
+        else:
+            st.info("📁 No logo uploaded for first box - will remain empty")
 
         # Process each row
         total_rows = len(df)
@@ -346,14 +350,14 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
             location_box_3 = Paragraph(location_boxes[2], location_style) if location_boxes[2] else ""
             location_box_4 = Paragraph(location_boxes[3], location_style) if location_boxes[3] else ""
 
-            # Create ASSLY row with 4 boxes: Custom Image, Logo, "ASSLY", Value
-            assly_logo = instor_logo if instor_logo else ""
-            first_box_content = custom_image if custom_image else ""
+            # Create ASSLY row with 4 boxes: First Box Logo, Instor Logo, "ASSLY", Value
+            first_box_content = first_box_logo if first_box_logo else ""  # Your uploaded logo goes here
+            second_box_content = instor_logo if instor_logo else ""       # Instor logo goes here
             
             # Create table data with modified ASSLY row structure (4 columns)
             unified_table_data = [
-                [first_box_content, assly_logo, "ASSLY", ASSLY],  # Modified: 4 columns for ASSLY row
-                ["PART NO", part_no],                             # 2 columns for other rows
+                [first_box_content, second_box_content, "ASSLY", ASSLY],  # Modified: 4 columns for ASSLY row
+                ["PART NO", part_no],                                     # 2 columns for other rows
                 ["PART DESC", desc],
                 ["PART PER VEH", Paragraph(str(Part_per_veh), partper_style), qr_cell],
                 ["TYPE", Paragraph(str(Type), Type_style), ""],
@@ -362,7 +366,7 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
             ]
 
             # Adjusted column widths for ASSLY row - 4 columns
-            col_widths_assly = [content_width*0.15, content_width*0.2, content_width*0.2, content_width*0.45]  # Custom Image, Logo, Header, Value
+            col_widths_assly = [content_width*0.15, content_width*0.2, content_width*0.2, content_width*0.45]  # First Logo, Instor Logo, Header, Value
             col_widths_top = [content_width*0.3, content_width*0.7]                        # Regular 2-column rows
             col_widths_middle = [content_width*0.3, content_width*0.3, content_width*0.4]   # 3-column with QR
             col_widths_bottom = [
@@ -386,8 +390,8 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
                 ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
                 ('FONTNAME', (2, 0), (2, 0), 'Helvetica-Bold'),  # ASSLY header bold
                 ('FONTSIZE', (0, 0), (-1, -1), 10),
-                ('ALIGN', (0, 0), (0, 0), 'CENTER'),  # Custom image centered
-                ('ALIGN', (1, 0), (1, 0), 'CENTER'),  # Logo centered
+                ('ALIGN', (0, 0), (0, 0), 'CENTER'),  # First box logo centered
+                ('ALIGN', (1, 0), (1, 0), 'CENTER'),  # Instor logo centered
                 ('ALIGN', (2, 0), (2, 0), 'CENTER'),  # Header centered
                 ('ALIGN', (3, 0), (3, 0), 'LEFT'),    # Value left aligned
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -493,42 +497,44 @@ def main():
     st.title("🏷️ INSTOR LABEL GENERATOR")
     st.markdown("---")
     
-    # Main content - logo, custom image, and file upload
+    # Main content - logo uploads and file upload
     col1, col2, col3 = st.columns([1, 1, 1])
     
     with col1:
-        st.header("🖼️ Logo Upload")
-        uploaded_logo = st.file_uploader(
-            "Upload your Instor Logo (will be used in labels)",
+        st.header("🏷️ First Box Logo Upload")
+        uploaded_first_box_logo = st.file_uploader(
+            "Upload Logo for First Box in Labels",
             type=['png', 'jpg', 'jpeg'],
-            help="Upload your Instor logo image to use in all generated labels",
-            key="logo_upload"
+            help="This logo will appear in the first box (before ASSLY) of each generated label",
+            key="first_box_logo_upload"
+        )
+        
+        # Display uploaded first box logo
+        if uploaded_first_box_logo is not None:
+            st.image(uploaded_first_box_logo, width=150, caption="Your First Box Logo")
+            st.success("✅ First box logo uploaded successfully")
+            st.info("This will appear in the first box of each label")
+        else:
+            st.info("📁 Optional: Upload logo for first box")
+            st.caption("This logo will appear in the leftmost box before 'ASSLY'")
+    
+    with col2:
+        st.header("🖼️ Instor Logo Upload")
+        uploaded_logo = st.file_uploader(
+            "Upload Instor Logo (second position)",
+            type=['png', 'jpg', 'jpeg'],
+            help="Upload your Instor logo to use in the second position of labels",
+            key="instor_logo_upload"
         )
         
         # Display uploaded logo
         if uploaded_logo is not None:
-            st.image(uploaded_logo, width=200, caption="Your Instor Logo")
-            st.success("✅ Logo uploaded successfully")
+            st.image(uploaded_logo, width=150, caption="Your Instor Logo")
+            st.success("✅ Instor logo uploaded successfully")
+            st.info("This will appear in the second position")
         else:
             st.info("📁 Optional: Upload your Instor logo")
-            st.caption("If no logo is uploaded, the default logo will be fetched from URL")
-    
-    with col2:
-        st.header("🎨 Custom Image Upload")
-        uploaded_custom_image = st.file_uploader(
-            "Upload Custom Image for First Box",
-            type=['png', 'jpg', 'jpeg'],
-            help="Upload a custom image to appear in the first box before ASSLY header",
-            key="custom_image_upload"
-        )
-        
-        # Display uploaded custom image
-        if uploaded_custom_image is not None:
-            st.image(uploaded_custom_image, width=200, caption="Your Custom Image")
-            st.success("✅ Custom image uploaded successfully")
-        else:
-            st.info("📁 Optional: Upload custom image for first box")
-            st.caption("This image will appear in the first box before the ASSLY header")
+            st.caption("If not uploaded, default logo will be used")
     
     with col3:
         st.header("📁 Data File Upload")
