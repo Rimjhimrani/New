@@ -79,9 +79,9 @@ def process_uploaded_logo(uploaded_logo, target_width_cm, target_height_cm):
         logo_img.save(img_buffer, format='PNG')
         img_buffer.seek(0)
         
-        # Return with 90% of target dimensions for padding
-        final_width = target_width_cm * 0.9
-        final_height = target_height_cm * 0.9
+        # Return with full target dimensions to make logo visible
+        final_width = target_width_cm
+        final_height = target_height_cm
         
         return Image(img_buffer, width=final_width, height=final_height)
         
@@ -539,97 +539,90 @@ def main():
         
         # Line Location configuration
         st.subheader("📍 Line Location Row Configuration")
-        st.markdown("Configure the width distribution for the Line Location row (Header + 4 boxes = 100%)")
-        
-        # Default values that sum to 1.0
-        default_header = 0.2
-        default_box = 0.2
+        st.markdown("Configure the width distribution for the Line Location row (5 columns total):")
         
         col1, col2, col3, col4, col5 = st.columns(5)
         
         with col1:
             line_loc_header_width = st.slider(
-                "Header Width", 
-                min_value=0.1, 
-                max_value=0.5, 
-                value=default_header, 
-                step=0.05,
+                "Header Width",
+                min_value=0.1,
+                max_value=0.5,
+                value=0.25,
+                step=0.01,
                 help="Width percentage for 'LINE LOCATION' header"
             )
         
         with col2:
             line_loc_box1_width = st.slider(
-                "Box 1 Width", 
-                min_value=0.1, 
-                max_value=0.5, 
-                value=default_box, 
-                step=0.05,
+                "Box 1 Width",
+                min_value=0.1,
+                max_value=0.4,
+                value=0.1875,
+                step=0.01,
                 help="Width percentage for first location box"
             )
         
         with col3:
             line_loc_box2_width = st.slider(
-                "Box 2 Width", 
-                min_value=0.1, 
-                max_value=0.5, 
-                value=default_box, 
-                step=0.05,
+                "Box 2 Width",
+                min_value=0.1,
+                max_value=0.4,
+                value=0.1875,
+                step=0.01,
                 help="Width percentage for second location box"
             )
         
         with col4:
             line_loc_box3_width = st.slider(
-                "Box 3 Width", 
-                min_value=0.1, 
-                max_value=0.5, 
-                value=default_box, 
-                step=0.05,
+                "Box 3 Width",
+                min_value=0.1,
+                max_value=0.4,
+                value=0.1875,
+                step=0.01,
                 help="Width percentage for third location box"
             )
         
         with col5:
             line_loc_box4_width = st.slider(
-                "Box 4 Width", 
-                min_value=0.1, 
-                max_value=0.5, 
-                value=default_box, 
-                step=0.05,
+                "Box 4 Width",
+                min_value=0.1,
+                max_value=0.4,
+                value=0.1875,
+                step=0.01,
                 help="Width percentage for fourth location box"
             )
         
         # Calculate total width
         total_width = line_loc_header_width + line_loc_box1_width + line_loc_box2_width + line_loc_box3_width + line_loc_box4_width
         
-        # Display width summary
-        if abs(total_width - 1.0) < 0.01:
-            st.success(f"✅ Total width: {total_width:.2f} (Perfect fit!)")
-        elif total_width > 1.0:
-            st.error(f"❌ Total width: {total_width:.2f} (Exceeds 100% - please reduce some values)")
+        # Display width validation
+        if abs(total_width - 1.0) > 0.001:
+            st.error(f"⚠️ Total width: {total_width:.3f} (should be 1.000)")
+            st.warning("Please adjust the sliders so the total width equals 100% (1.000)")
         else:
-            st.warning(f"⚠️ Total width: {total_width:.2f} (Less than 100% - consider increasing some values)")
+            st.success(f"✅ Perfect! Total width: {total_width:.3f}")
         
         # Show actual dimensions
-        st.markdown("**Actual Dimensions:**")
-        actual_dims = [
-            ("Header", line_loc_header_width, (CONTENT_BOX_WIDTH * line_loc_header_width) / cm),
-            ("Box 1", line_loc_box1_width, (CONTENT_BOX_WIDTH * line_loc_box1_width) / cm),
-            ("Box 2", line_loc_box2_width, (CONTENT_BOX_WIDTH * line_loc_box2_width) / cm),
-            ("Box 3", line_loc_box3_width, (CONTENT_BOX_WIDTH * line_loc_box3_width) / cm),
-            ("Box 4", line_loc_box4_width, (CONTENT_BOX_WIDTH * line_loc_box4_width) / cm)
-        ]
+        st.subheader("📐 Actual Dimensions Preview")
+        col1, col2, col3, col4, col5 = st.columns(5)
         
-        dims_cols = st.columns(5)
-        for i, (name, percent, cm_width) in enumerate(actual_dims):
-            with dims_cols[i]:
-                st.metric(name, f"{percent:.0%}", f"{cm_width:.1f}cm")
+        with col1:
+            st.metric("Header", f"{line_loc_header_width*100:.1f}%", f"{(CONTENT_BOX_WIDTH*line_loc_header_width)/cm:.2f}cm")
+        with col2:
+            st.metric("Box 1", f"{line_loc_box1_width*100:.1f}%", f"{(CONTENT_BOX_WIDTH*line_loc_box1_width)/cm:.2f}cm")
+        with col3:
+            st.metric("Box 2", f"{line_loc_box2_width*100:.1f}%", f"{(CONTENT_BOX_WIDTH*line_loc_box2_width)/cm:.2f}cm")
+        with col4:
+            st.metric("Box 3", f"{line_loc_box3_width*100:.1f}%", f"{(CONTENT_BOX_WIDTH*line_loc_box3_width)/cm:.2f}cm")
+        with col5:
+            st.metric("Box 4", f"{line_loc_box4_width*100:.1f}%", f"{(CONTENT_BOX_WIDTH*line_loc_box4_width)/cm:.2f}cm")
 
-    # Generate Button
-    st.markdown("---")
+    # Generation Section
     st.header("🚀 Generate Sticker Labels")
     
-    # Check if data is uploaded
     if st.session_state.uploaded_file is not None:
-        # Read the data again for generation
+        # Read the data for generation
         try:
             if st.session_state.uploaded_file.name.endswith('.csv'):
                 df = pd.read_csv(st.session_state.uploaded_file)
@@ -639,71 +632,78 @@ def main():
             # Show generation summary
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.metric("Total Records", len(df))
+                st.metric("📊 Total Records", len(df))
             with col2:
-                st.metric("Logo Status", "✅ Included" if st.session_state.uploaded_logo else "❌ None")
+                st.metric("📄 Pages", len(df), help="One sticker per page")
             with col3:
-                st.metric("Line Location Config", "✅ Ready" if abs(total_width - 1.0) < 0.01 else "⚠️ Check Width")
+                logo_status = "✅ With Logo" if st.session_state.uploaded_logo else "📄 No Logo"
+                st.metric("🖼️ Logo Status", logo_status)
             
-            # Generate button
+            # Generation button
             if st.button("🎯 Generate Sticker Labels", type="primary", use_container_width=True):
-                if abs(total_width - 1.0) > 0.01:
-                    st.error("❌ Please adjust the line location widths to sum to 100% before generating.")
-                else:
-                    with st.spinner("🔄 Generating sticker labels..."):
-                        pdf_data, filename = generate_sticker_labels(
-                            df,
-                            line_loc_header_width,
-                            line_loc_box1_width,
-                            line_loc_box2_width,
-                            line_loc_box3_width,
-                            line_loc_box4_width,
-                            st.session_state.uploaded_logo
+                with st.spinner("🔄 Generating sticker labels... Please wait."):
+                    pdf_data, filename = generate_sticker_labels(
+                        df,
+                        line_loc_header_width,
+                        line_loc_box1_width,
+                        line_loc_box2_width,
+                        line_loc_box3_width,
+                        line_loc_box4_width,
+                        st.session_state.uploaded_logo
+                    )
+                    
+                    if pdf_data:
+                        # Success message
+                        st.success("🎉 Sticker labels generated successfully!")
+                        
+                        # Download button
+                        st.download_button(
+                            label="📥 Download PDF",
+                            data=pdf_data,
+                            file_name=filename,
+                            mime="application/pdf",
+                            type="primary",
+                            use_container_width=True
                         )
                         
-                        if pdf_data:
-                            st.success("🎉 Sticker labels generated successfully!")
+                        # PDF preview info
+                        st.info(f"📄 Generated PDF contains {len(df)} sticker labels ready for printing!")
+                        
+                        # Print instructions
+                        with st.expander("🖨️ Printing Instructions"):
+                            st.markdown("""
+                            ### How to Print Your Stickers:
+                            1. **Download** the PDF file using the button above
+                            2. **Open** the PDF in your preferred PDF viewer
+                            3. **Print Settings**:
+                               - Paper size: Custom (10cm × 15cm) or closest available
+                               - Orientation: Portrait
+                               - Scale: 100% (Actual size)
+                               - Margins: None or minimum
+                            4. **Use** appropriate sticker paper or labels
+                            5. **Cut** along the border lines if needed
                             
-                            # Download button
-                            st.download_button(
-                                label="📥 Download PDF",
-                                data=pdf_data,
-                                file_name=filename,
-                                mime="application/pdf",
-                                use_container_width=True
-                            )
-                            
-                            # Show file info
-                            st.info(f"📊 Generated {len(df)} sticker labels | File size: {len(pdf_data)/1024:.1f} KB")
-                        else:
-                            st.error("❌ Failed to generate sticker labels. Please check your data and try again.")
-            
-            # Preview section
-            st.markdown("---")
-            st.subheader("👀 Data Preview for Generation")
-            with st.expander("View Data to be Processed", expanded=False):
-                st.dataframe(df, use_container_width=True)
-                
+                            ### Sticker Specifications:
+                            - **Sticker Size**: 10cm × 15cm
+                            - **Content Area**: 9.8cm × 5cm (with border)
+                            - **QR Code**: Included for each item
+                            - **Border**: Black border around content
+                            """)
+                    else:
+                        st.error("❌ Failed to generate sticker labels. Please check your data and try again.")
+                        
         except Exception as e:
-            st.error(f"❌ Error processing uploaded file: {str(e)}")
+            st.error(f"❌ Error processing data: {str(e)}")
     else:
-        st.warning("⚠️ Please upload a data file in the '📊 Upload Data' tab first.")
-        
-        # Show requirements again
-        st.markdown("""
-        ### 📋 Before generating sticker labels:
-        1. **Upload Data**: CSV or Excel file with required columns
-        2. **Upload Logo** (Optional): PNG, JPG, or JPEG file
-        3. **Configure Settings**: Adjust line location widths if needed
-        4. **Generate**: Click the generate button to create your PDF
-        """)
+        st.warning("📊 Please upload a data file first to generate sticker labels.")
+        st.info("👆 Go to the 'Upload Data' tab to get started.")
 
     # Footer
     st.markdown("---")
     st.markdown("""
-    <div style='text-align: center; color: #666; font-size: 0.9em;'>
-        🏷️ Sticker Label Generator | Generate professional labels with QR codes<br>
-        Supports dynamic column mapping and flexible layout configuration
+    <div style='text-align: center; color: #666; padding: 20px;'>
+        <p>🏷️ <strong>Sticker Label Generator</strong> | Generate professional labels with QR codes</p>
+        <p>💡 <em>Upload your data → Configure settings → Generate labels → Print & use!</em></p>
     </div>
     """, unsafe_allow_html=True)
 
