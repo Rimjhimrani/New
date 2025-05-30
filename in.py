@@ -53,7 +53,7 @@ def find_column(df, possible_names):
     return None
 
 def create_first_box_logo_from_upload(uploaded_logo):
-    """Create first box logo from uploaded file"""
+    """Create first box logo from uploaded file with exact dimensions"""
     try:
         # Load image from uploaded file
         logo_img = PILImage.open(uploaded_logo)
@@ -96,74 +96,6 @@ def create_first_box_logo_from_upload(uploaded_logo):
         st.error(f"Error processing uploaded first box logo: {e}")
         return None
 
-def create_custom_first_box_logo():
-    """Create a custom logo programmatically for the first box of sticker labels (FALLBACK ONLY)"""
-    try:
-        # Calculate the actual first box dimensions
-        content_width = CONTENT_BOX_WIDTH - 0.2*cm  # 9.8cm
-        box_width_cm = content_width * 0.15 / cm  # Convert to cm value
-        box_height_cm = 0.7  # ASSLY_row_height
-        
-        # Convert to pixels for creating image (using 300 DPI for better quality)
-        dpi = 300
-        box_width_px = int(box_width_cm * dpi / 2.54)  # cm to pixels
-        box_height_px = int(box_height_cm * dpi / 2.54)  # cm to pixels
-        
-        # Create image with white background
-        img = PILImage.new('RGB', (box_width_px, box_height_px), (255, 255, 255))
-        draw = ImageDraw.Draw(img)
-        
-        # Design 1: Simple geometric logo with company initials
-        # Draw a blue rectangle as background
-        draw.rectangle([5, 5, box_width_px-5, box_height_px-5], fill=(41, 128, 185), outline=(52, 73, 94), width=2)
-        
-        # Try to use a font, fallback to default if not available
-        try:
-            # Try to load a font
-            font_size = min(box_width_px // 4, box_height_px // 2)
-            font = ImageFont.truetype("arial.ttf", font_size)
-        except:
-            # Fallback to default font
-            font = ImageFont.load_default()
-        
-        # Add company initials or text
-        text = "LOGO"  # You can change this to your company initials
-        
-        # Get text size and center it
-        try:
-            bbox = draw.textbbox((0, 0), text, font=font)
-            text_width = bbox[2] - bbox[0]
-            text_height = bbox[3] - bbox[1]
-        except:
-            # Fallback for older PIL versions
-            text_width, text_height = draw.textsize(text, font=font)
-        
-        x = (box_width_px - text_width) // 2
-        y = (box_height_px - text_height) // 2
-        
-        # Draw white text
-        draw.text((x, y), text, fill=(255, 255, 255), font=font)
-        
-        # Add some decorative elements
-        # Small corner triangles
-        draw.polygon([(0, 0), (15, 0), (0, 15)], fill=(231, 76, 60))  # Top-left red triangle
-        draw.polygon([(box_width_px, 0), (box_width_px-15, 0), (box_width_px, 15)], fill=(46, 204, 113))  # Top-right green triangle
-        
-        # Convert to bytes for ReportLab
-        img_buffer = BytesIO()
-        img.save(img_buffer, format='PNG')
-        img_buffer.seek(0)
-        
-        # Return with exact dimensions to fit the first box
-        final_width = box_width_cm * 0.9  # 90% of box width for padding
-        final_height = box_height_cm * 0.9  # 90% of box height for padding
-        
-        return Image(img_buffer, width=final_width*cm, height=final_height*cm)
-        
-    except Exception as e:
-        st.error(f"Error creating custom first box logo: {e}")
-        return None
-
 def create_instor_logo_from_url():
     """Create Instor logo from the specified URL"""
     try:
@@ -197,61 +129,6 @@ def create_instor_logo_from_url():
         
     except Exception as e:
         st.warning(f"Error loading logo from URL: {e}")
-        # Fallback to embedded logo
-        return create_instor_logo_embedded()
-
-def create_instor_logo_embedded():
-    """Create Instor logo using embedded base64 data (fallback)"""
-    try:
-        # Create a simple text logo as fallback
-        from reportlab.pdfgen import canvas
-        from reportlab.lib.colors import blue, orange
-        
-        img_buffer = BytesIO()
-        
-        # Create a temporary canvas to draw the logo
-        logo_canvas = canvas.Canvas(img_buffer, pagesize=(120, 40))
-        logo_canvas.setFillColor(blue)
-        logo_canvas.setFont("Helvetica-Bold", 12)
-        logo_canvas.drawString(5, 20, "instor")
-        logo_canvas.setFillColor(orange)
-        logo_canvas.rect(0, 0, 20, 5, fill=1)
-        logo_canvas.rect(0, 35, 20, 5, fill=1)
-        logo_canvas.save()
-        
-        img_buffer.seek(0)
-        return Image(img_buffer, width=2*cm, height=0.8*cm)
-        
-    except Exception as e:
-        st.warning(f"Error creating embedded logo: {e}")
-        return None
-
-def create_instor_logo_from_upload(uploaded_logo):
-    """Create Instor logo image for PDF from uploaded file"""
-    try:
-        # Load image from uploaded file
-        logo_img = PILImage.open(uploaded_logo)
-        
-        # Convert to RGB if necessary
-        if logo_img.mode in ('RGBA', 'LA', 'P'):
-            # Create white background
-            background = PILImage.new('RGB', logo_img.size, (255, 255, 255))
-            if logo_img.mode == 'P':
-                logo_img = logo_img.convert('RGBA')
-            background.paste(logo_img, mask=logo_img.split()[-1] if logo_img.mode in ('RGBA', 'LA') else None)
-            logo_img = background
-        
-        # Resize logo to appropriate size for label
-        logo_img = logo_img.resize((120, 40), PILImage.Resampling.LANCZOS)
-        
-        # Convert to bytes for ReportLab
-        img_buffer = BytesIO()
-        logo_img.save(img_buffer, format='PNG')
-        img_buffer.seek(0)
-        
-        return Image(img_buffer, width=2*cm, height=0.8*cm)
-    except Exception as e:
-        st.error(f"Error processing uploaded logo: {e}")
         return None
 
 def generate_qr_code(data_string):
@@ -292,7 +169,7 @@ def parse_line_location(location_string):
 
 def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width, 
                           line_loc_box2_width, line_loc_box3_width, line_loc_box4_width, 
-                          uploaded_first_box_logo=None, uploaded_instor_logo=None):
+                          uploaded_first_box_logo=None):
     """Generate sticker labels with QR code and logos from DataFrame"""
     try:
         # Define column mappings
@@ -367,7 +244,7 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
         all_elements = []
         today_date = datetime.datetime.now().strftime("%d-%m-%Y")
 
-        # Handle first box logo (prioritize uploaded, then fallback to programmatic)
+        # Handle first box logo (only from uploaded file)
         first_box_logo = None
         if uploaded_first_box_logo is not None:
             first_box_logo = create_first_box_logo_from_upload(uploaded_first_box_logo)
@@ -375,25 +252,15 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
                 st.success("✅ Using your uploaded logo for first box")
             else:
                 st.error("❌ Failed to process uploaded first box logo")
-        
-        if first_box_logo is None:
-            first_box_logo = create_custom_first_box_logo()
-            if first_box_logo:
-                st.info("🔧 Using programmatically created logo for first box (no logo uploaded)")
-            else:
-                st.warning("⚠️ Could not create logo for first box")
+        else:
+            st.info("ℹ️ No logo uploaded for first box - first box will be empty")
 
-        # Handle Instor logo (prioritize uploaded, then URL, then embedded)
-        instor_logo = None
-        if uploaded_instor_logo is not None:
-            instor_logo = create_instor_logo_from_upload(uploaded_instor_logo)
-            if instor_logo:
-                st.success("✅ Using your uploaded Instor logo for second box")
-        
-        if instor_logo is None:
-            instor_logo = create_instor_logo_from_url()
-            if instor_logo:
-                st.info("🌐 Using Instor logo from URL for second box")
+        # Handle Instor logo (from URL only)
+        instor_logo = create_instor_logo_from_url()
+        if instor_logo:
+            st.info("🌐 Using Instor logo from URL for second box")
+        else:
+            st.warning("⚠️ Could not load Instor logo from URL")
 
         # Process each row
         total_rows = len(df)
@@ -443,7 +310,7 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
             location_box_4 = Paragraph(location_boxes[3], location_style) if location_boxes[3] else ""
 
             # Create ASSLY row with 4 boxes: First Box Logo, Instor Logo, "ASSLY", Value
-            first_box_content = first_box_logo if first_box_logo else ""  # Your uploaded/created logo
+            first_box_content = first_box_logo if first_box_logo else ""  # Your uploaded logo or empty
             second_box_content = instor_logo if instor_logo else ""       # Instor logo
             
             # Create table data with modified ASSLY row structure (4 columns)
@@ -595,20 +462,21 @@ def main():
         help="Upload your data file containing part information"
     )
     
-    # Logo uploads
+    # Logo upload (only for first box)
     st.sidebar.header("🖼️ Logo Configuration")
     
     uploaded_first_box_logo = st.sidebar.file_uploader(
         "Upload First Box Logo (Optional)",
         type=['png', 'jpg', 'jpeg'],
-        help="Upload a logo for the first box in the ASSLY row"
+        help="Upload a logo for the first box in the ASSLY row. Logo will be resized to fit the first box dimensions."
     )
     
-    uploaded_instor_logo = st.sidebar.file_uploader(
-        "Upload Instor Logo (Optional)",
-        type=['png', 'jpg', 'jpeg'],
-        help="Upload your company/Instor logo"
-    )
+    if uploaded_first_box_logo:
+        st.sidebar.success("✅ Logo uploaded successfully!")
+        # Show logo preview
+        st.sidebar.image(uploaded_first_box_logo, caption="Uploaded Logo Preview", width=100)
+    else:
+        st.sidebar.info("ℹ️ No logo uploaded - first box will be empty")
 
     # Line location configuration
     st.sidebar.header("📍 Line Location Layout")
@@ -679,32 +547,32 @@ def main():
                         line_loc_box2_width,
                         line_loc_box3_width,
                         line_loc_box4_width,
-                        uploaded_first_box_logo,
-                        uploaded_instor_logo
+                        uploaded_first_box_logo
                     )
                 
                 if pdf_data:
                     # Success message and download button
                     st.success("🎉 Sticker labels generated successfully!")
                     
+                    # Create download button
                     st.download_button(
-                        label="📥 Download PDF",
+                        label="📥 Download PDF Labels",
                         data=pdf_data,
                         file_name=filename,
                         mime="application/pdf",
-                        type="primary",
                         use_container_width=True
                     )
                     
-                    # Display PDF info
-                    st.info(f"📄 Generated: {filename} ({len(pdf_data)} bytes)")
-                
+                    # Display file info
+                    st.info(f"📄 Generated file: `{filename}`")
+                    st.info(f"📊 Total labels: {len(df)}")
+                    
                 else:
                     st.error("❌ Failed to generate sticker labels. Please check your data and try again.")
-        
+            
         except Exception as e:
             st.error(f"❌ Error processing file: {str(e)}")
-            st.info("Please make sure your file is a valid CSV or Excel file with proper formatting.")
+            st.info("💡 Please ensure your file is properly formatted and contains the required columns.")
     
     else:
         # Instructions when no file is uploaded
@@ -715,31 +583,30 @@ def main():
             ### How to use this application:
             
             1. **Upload your data file** (CSV or Excel) using the sidebar
-            2. **Configure logos** (optional):
-               - Upload a logo for the first box in the ASSLY row
-               - Upload your company/Instor logo
-            3. **Adjust line location layout** if needed
-            4. **Click 'Generate Sticker Labels'** to create your PDF
-            5. **Download the generated PDF**
+            2. **Optional**: Upload a logo for the first box in the ASSLY row
+            3. **Configure** the line location box widths if needed
+            4. **Click** "Generate Sticker Labels" to create your PDF
+            5. **Download** the generated PDF file
             
-            ### Required Columns:
-            Your file should contain these columns (case-insensitive):
-            - **ASSLY/Assembly**: Assembly name or part assembly
-            - **Part No/Part Number**: Unique part identifier  
-            - **Description**: Part description
+            ### Required columns in your data:
+            - **Assembly** (ASSLY, Assembly, Assembly Name, etc.)
+            - **Part Number** (Part No, PartNo, Part Number, etc.)
+            - **Description** (Description, Part Description, etc.)
             
-            ### Optional Columns:
-            - **QTY/Part Per Veh**: Quantity per vehicle/bin
-            - **Type**: Part type or category
-            - **Line Location**: Location information (will be split into 4 boxes)
-            
-            ### Features:
-            - ✅ Automatic QR code generation
-            - ✅ Professional sticker layout
-            - ✅ Custom logo support
-            - ✅ Configurable line location boxes
-            - ✅ Date stamping
-            - ✅ Batch processing
+            ### Optional columns:
+            - **Quantity** (QTY, Qty/Veh, Part per Veh, etc.)
+            - **Type** (Type, TYPE, etc.)
+            - **Line Location** (Line Location, LINE LOCATION, etc.)
+            """)
+        
+        with st.expander("🎯 Features"):
+            st.markdown("""
+            - ✅ **QR Code Generation**: Each label includes a QR code with all part information
+            - ✅ **Logo Support**: Add your company logo to the first box
+            - ✅ **Flexible Column Mapping**: Automatically detects various column name formats
+            - ✅ **Customizable Layout**: Adjust line location box widths
+            - ✅ **Professional Design**: Clean, print-ready sticker labels
+            - ✅ **Multiple Formats**: Supports CSV and Excel files
             """)
 
 if __name__ == "__main__":
