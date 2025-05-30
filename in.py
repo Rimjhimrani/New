@@ -531,9 +531,9 @@ def main():
         with col1:
             st.metric("Logo Box", "25%", help=f"25% of {CONTENT_BOX_WIDTH/cm:.1f}cm = {(CONTENT_BOX_WIDTH*0.25)/cm:.1f}cm")
         with col2:
-            st.metric("ASSLY Header", "20%", help=f"20% of {CONTENT_BOX_WIDTH/cm:.1f}cm = {(CONTENT_BOX_WIDTH*0.25)/cm:.1f}cm")
+            st.metric("ASSLY Header", "20%", help=f"20% of {CONTENT_BOX_WIDTH/cm:.1f}cm = {(CONTENT_BOX_WIDTH*0.20)/cm:.1f}cm")
         with col3:
-            st.metric("ASSLY Value", "55%", help=f"55% of {CONTENT_BOX_WIDTH/cm:.1f}cm = {(CONTENT_BOX_WIDTH*0.50)/cm:.1f}cm")
+            st.metric("ASSLY Value", "55%", help=f"55% of {CONTENT_BOX_WIDTH/cm:.1f}cm = {(CONTENT_BOX_WIDTH*0.55)/cm:.1f}cm")
         
         st.success("✅ ASSLY row perfectly fits within content width!")
         
