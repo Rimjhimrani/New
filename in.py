@@ -6,7 +6,7 @@ import datetime
 from io import BytesIO
 import tempfile
 import requests
-from PIL import Image as PILImage
+from PIL import Image as PILImage, ImageDraw, ImageFont
 import base64
 
 # ReportLab imports for PDF generation
@@ -51,6 +51,74 @@ def find_column(df, possible_names):
             return original_name
 
     return None
+
+def create_custom_first_box_logo():
+    """Create a custom logo programmatically for the first box of sticker labels"""
+    try:
+        # Calculate the actual first box dimensions
+        content_width = CONTENT_BOX_WIDTH - 0.2*cm  # 9.8cm
+        box_width_cm = content_width * 0.15 / cm  # Convert to cm value
+        box_height_cm = 0.7  # ASSLY_row_height
+        
+        # Convert to pixels for creating image (using 300 DPI for better quality)
+        dpi = 300
+        box_width_px = int(box_width_cm * dpi / 2.54)  # cm to pixels
+        box_height_px = int(box_height_cm * dpi / 2.54)  # cm to pixels
+        
+        # Create image with white background
+        img = PILImage.new('RGB', (box_width_px, box_height_px), (255, 255, 255))
+        draw = ImageDraw.Draw(img)
+        
+        # Design 1: Simple geometric logo with company initials
+        # Draw a blue rectangle as background
+        draw.rectangle([5, 5, box_width_px-5, box_height_px-5], fill=(41, 128, 185), outline=(52, 73, 94), width=2)
+        
+        # Try to use a font, fallback to default if not available
+        try:
+            # Try to load a font
+            font_size = min(box_width_px // 4, box_height_px // 2)
+            font = ImageFont.truetype("arial.ttf", font_size)
+        except:
+            # Fallback to default font
+            font = ImageFont.load_default()
+        
+        # Add company initials or text
+        text = "LOGO"  # You can change this to your company initials
+        
+        # Get text size and center it
+        try:
+            bbox = draw.textbbox((0, 0), text, font=font)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+        except:
+            # Fallback for older PIL versions
+            text_width, text_height = draw.textsize(text, font=font)
+        
+        x = (box_width_px - text_width) // 2
+        y = (box_height_px - text_height) // 2
+        
+        # Draw white text
+        draw.text((x, y), text, fill=(255, 255, 255), font=font)
+        
+        # Add some decorative elements
+        # Small corner triangles
+        draw.polygon([(0, 0), (15, 0), (0, 15)], fill=(231, 76, 60))  # Top-left red triangle
+        draw.polygon([(box_width_px, 0), (box_width_px-15, 0), (box_width_px, 15)], fill=(46, 204, 113))  # Top-right green triangle
+        
+        # Convert to bytes for ReportLab
+        img_buffer = BytesIO()
+        img.save(img_buffer, format='PNG')
+        img_buffer.seek(0)
+        
+        # Return with exact dimensions to fit the first box
+        final_width = box_width_cm * 0.9  # 90% of box width for padding
+        final_height = box_height_cm * 0.9  # 90% of box height for padding
+        
+        return Image(img_buffer, width=final_width*cm, height=final_height*cm)
+        
+    except Exception as e:
+        st.error(f"Error creating custom first box logo: {e}")
+        return None
 
 def create_instor_logo_from_url():
     """Create Instor logo from the specified URL"""
@@ -142,70 +210,6 @@ def create_instor_logo_from_upload(uploaded_logo):
         st.error(f"Error processing uploaded logo: {e}")
         return None
 
-def create_first_box_logo_from_upload(uploaded_first_box_logo):
-    """Create logo for first box from uploaded file - properly sized for the first box"""
-    try:
-        # Load image from uploaded file
-        first_box_img = PILImage.open(uploaded_first_box_logo)
-        
-        # Convert to RGB if necessary
-        if first_box_img.mode in ('RGBA', 'LA', 'P'):
-            # Create white background
-            background = PILImage.new('RGB', first_box_img.size, (255, 255, 255))
-            if first_box_img.mode == 'P':
-                first_box_img = first_box_img.convert('RGBA')
-            background.paste(first_box_img, mask=first_box_img.split()[-1] if first_box_img.mode in ('RGBA', 'LA') else None)
-            first_box_img = background
-        
-        # Calculate the actual first box dimensions
-        # From your code: content_width*0.15 and ASSLY_row_height = 0.7*cm
-        content_width = CONTENT_BOX_WIDTH - 0.2*cm  # 9.8cm
-        box_width_cm = content_width * 0.15 / cm  # Convert to cm value
-        box_height_cm = 0.7  # ASSLY_row_height
-        
-        # Convert to pixels for resizing (using 300 DPI for better quality)
-        dpi = 300
-        box_width_px = int(box_width_cm * dpi / 2.54)  # cm to pixels
-        box_height_px = int(box_height_cm * dpi / 2.54)  # cm to pixels
-        
-        # Get original image dimensions
-        orig_width, orig_height = first_box_img.size
-        
-        # Calculate scaling to fit within box while maintaining aspect ratio
-        # Leave some padding (90% of available space)
-        width_ratio = (box_width_px * 0.9) / orig_width
-        height_ratio = (box_height_px * 0.9) / orig_height
-        scale_ratio = min(width_ratio, height_ratio)
-        
-        # Calculate new dimensions
-        new_width = int(orig_width * scale_ratio)
-        new_height = int(orig_height * scale_ratio)
-        
-        # Ensure minimum size
-        if new_width < 10:
-            new_width = 10
-        if new_height < 10:
-            new_height = 10
-        
-        # Resize image maintaining aspect ratio
-        first_box_img = first_box_img.resize((new_width, new_height), PILImage.Resampling.LANCZOS)
-        
-        # Convert to bytes for ReportLab
-        img_buffer = BytesIO()
-        first_box_img.save(img_buffer, format='PNG')
-        img_buffer.seek(0)
-        
-        # Calculate final display size (slightly smaller than box to ensure fit)
-        final_width = min(box_width_cm * 0.9, (new_width * 2.54) / 300)  # Convert back to cm
-        final_height = min(box_height_cm * 0.9, (new_height * 2.54) / 300)  # Convert back to cm
-        
-        # Return with exact dimensions to fit the first box
-        return Image(img_buffer, width=final_width*cm, height=final_height*cm)
-        
-    except Exception as e:
-        st.error(f"Error processing uploaded first box logo: {e}")
-        return None
-
 def generate_qr_code(data_string):
     """Generate a QR code from the given data string"""
     try:
@@ -244,7 +248,7 @@ def parse_line_location(location_string):
 
 def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width, 
                           line_loc_box2_width, line_loc_box3_width, line_loc_box4_width, 
-                          uploaded_logo=None, uploaded_first_box_logo=None):
+                          uploaded_logo=None):
     """Generate sticker labels with QR code and logo from DataFrame"""
     try:
         # Define column mappings
@@ -319,6 +323,13 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
         all_elements = []
         today_date = datetime.datetime.now().strftime("%d-%m-%Y")
 
+        # Create custom logo for first box (CREATED PROGRAMMATICALLY)
+        first_box_logo = create_custom_first_box_logo()
+        if first_box_logo:
+            st.success("✅ Custom logo created programmatically for first box of labels")
+        else:
+            st.warning("⚠️ Could not create custom logo for first box")
+
         # Create logo for second position (Instor logo) - prioritize uploaded logo, then use URL version
         instor_logo = None
         if uploaded_logo is not None:
@@ -328,14 +339,6 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
         if instor_logo is None:
             instor_logo = create_instor_logo_from_url()
             st.info("🌐 Using Instor logo from URL in second position")
-
-        # Create logo for first box (your custom logo)
-        first_box_logo = None
-        if uploaded_first_box_logo is not None:
-            first_box_logo = create_first_box_logo_from_upload(uploaded_first_box_logo)
-            st.success("✅ Using your uploaded logo in first box of labels")
-        else:
-            st.info("📁 No logo uploaded for first box - will remain empty")
 
         # Process each row
         total_rows = len(df)
@@ -384,8 +387,8 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
             location_box_3 = Paragraph(location_boxes[2], location_style) if location_boxes[2] else ""
             location_box_4 = Paragraph(location_boxes[3], location_style) if location_boxes[3] else ""
 
-            # Create ASSLY row with 4 boxes: First Box Logo, Instor Logo, "ASSLY", Value
-            first_box_content = first_box_logo if first_box_logo else ""  # Your uploaded logo goes here
+            # Create ASSLY row with 4 boxes: Custom Created Logo, Instor Logo, "ASSLY", Value
+            first_box_content = first_box_logo if first_box_logo else ""  # Your CREATED logo goes here
             second_box_content = instor_logo if instor_logo else ""       # Instor logo goes here
             
             # Create table data with modified ASSLY row structure (4 columns)
@@ -400,7 +403,7 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
             ]
 
             # Adjusted column widths for ASSLY row - 4 columns
-            col_widths_assly = [content_width*0.15, content_width*0.2, content_width*0.2, content_width*0.45]  # First Logo, Instor Logo, Header, Value
+            col_widths_assly = [content_width*0.15, content_width*0.2, content_width*0.2, content_width*0.45]  # Custom Logo, Instor Logo, Header, Value
             col_widths_top = [content_width*0.3, content_width*0.7]                        # Regular 2-column rows
             col_widths_middle = [content_width*0.3, content_width*0.3, content_width*0.4]   # 3-column with QR
             col_widths_bottom = [
@@ -531,25 +534,10 @@ def main():
     st.title("🏷️ INSTOR LABEL GENERATOR")
     st.markdown("---")
     
-    # Main content - logo uploads and file upload
-    col1, col2, col3 = st.columns([1, 1, 1])
+    # Main content - logo upload and file upload
+    col1, col2 = st.columns([1, 1])
     
     with col1:
-        st.header("🏷️ First Box Logo Upload")
-        uploaded_first_box_logo = st.file_uploader(
-            "Upload Logo for First Box in Labels",
-            type=['png', 'jpg', 'jpeg'],
-            help="This logo will appear in the first box (before ASSLY) of each generated label",
-            key="first_box_logo_upload"
-        )
-        
-        # Display uploaded first box logo
-        if uploaded_first_box_logo is not None:
-            st.# Display uploaded first box logo
-        if uploaded_first_box_logo is not None:
-            st.image(uploaded_first_box_logo, caption="First Box Logo Preview", width=200)
-    
-    with col2:
         st.header("🏢 Instor Logo Upload")
         uploaded_logo = st.file_uploader(
             "Upload Instor Logo (Optional)",
@@ -560,120 +548,198 @@ def main():
         
         # Display uploaded Instor logo
         if uploaded_logo is not None:
-            st.image(uploaded_logo, caption="Instor Logo Preview", width=200)
+            try:
+                logo_image = PILImage.open(uploaded_logo)
+                st.image(logo_image, caption="Uploaded Instor Logo", width=200)
+                st.success("✅ Instor logo uploaded successfully!")
+            except Exception as e:
+                st.error(f"Error displaying uploaded logo: {e}")
         else:
-            st.info("Default Instor logo from URL will be used")
+            st.info("💡 No Instor logo uploaded. Will use default logo from URL.")
     
-    with col3:
-        st.header("📊 CSV File Upload")
+    with col2:
+        st.header("📄 CSV File Upload")
         uploaded_file = st.file_uploader(
             "Choose a CSV file",
             type="csv",
-            help="Upload your CSV file containing the data for label generation"
+            help="Upload your data CSV file to generate labels"
         )
-
-    # Line Location Width Configuration
-    st.markdown("---")
-    st.header("📐 Line Location Box Width Configuration")
-    st.markdown("Adjust the width distribution of the line location boxes (must total 100%)")
     
-    col_config1, col_config2, col_config3, col_config4, col_config5 = st.columns(5)
+    # Line Location Configuration Section
+    st.header("📍 Line Location Configuration")
+    st.markdown("Configure the width ratios for line location boxes (should sum to 1.0)")
     
-    with col_config1:
-        line_loc_header_width = st.slider("Header Width (%)", min_value=5, max_value=50, value=20, step=1) / 100
+    col1, col2, col3, col4, col5 = st.columns(5)
     
-    with col_config2:
-        line_loc_box1_width = st.slider("Box 1 Width (%)", min_value=5, max_value=50, value=20, step=1) / 100
+    with col1:
+        line_loc_header_width = st.number_input(
+            "Header Width",
+            min_value=0.1,
+            max_value=0.8,
+            value=0.25,
+            step=0.05,
+            help="Width ratio for 'LINE LOCATION' header"
+        )
     
-    with col_config3:
-        line_loc_box2_width = st.slider("Box 2 Width (%)", min_value=5, max_value=50, value=20, step=1) / 100
+    with col2:
+        line_loc_box1_width = st.number_input(
+            "Box 1 Width",
+            min_value=0.05,
+            max_value=0.5,
+            value=0.2,
+            step=0.05,
+            help="Width ratio for location box 1"
+        )
     
-    with col_config4:
-        line_loc_box3_width = st.slider("Box 3 Width (%)", min_value=5, max_value=50, value=20, step=1) / 100
+    with col3:
+        line_loc_box2_width = st.number_input(
+            "Box 2 Width",
+            min_value=0.05,
+            max_value=0.5,
+            value=0.2,
+            step=0.05,
+            help="Width ratio for location box 2"
+        )
     
-    with col_config5:
-        line_loc_box4_width = st.slider("Box 4 Width (%)", min_value=5, max_value=50, value=20, step=1) / 100
-
-    # Check if total width equals 100%
-    total_width = (line_loc_header_width + line_loc_box1_width + 
-                   line_loc_box2_width + line_loc_box3_width + line_loc_box4_width)
+    with col4:
+        line_loc_box3_width = st.number_input(
+            "Box 3 Width",
+            min_value=0.05,
+            max_value=0.5,
+            value=0.15,
+            step=0.05,
+            help="Width ratio for location box 3"
+        )
     
-    if abs(total_width - 1.0) > 0.001:  # Allow small floating point differences
-        st.error(f"⚠️ Total width must equal 100%. Current total: {total_width*100:.1f}%")
-        return
-
-    # Process the uploaded file
+    with col5:
+        line_loc_box4_width = st.number_input(
+            "Box 4 Width",
+            min_value=0.05,
+            max_value=0.5,
+            value=0.2,
+            step=0.05,
+            help="Width ratio for location box 4"
+        )
+    
+    # Check if total width equals 1.0
+    total_width = line_loc_header_width + line_loc_box1_width + line_loc_box2_width + line_loc_box3_width + line_loc_box4_width
+    
+    if abs(total_width - 1.0) > 0.001:
+        st.warning(f"⚠️ Total width is {total_width:.3f}. It should equal 1.0 for proper formatting.")
+    else:
+        st.success(f"✅ Total width is {total_width:.3f} - Perfect!")
+    
+    # Process uploaded file
     if uploaded_file is not None:
-        st.markdown("---")
         try:
             # Read CSV file
             df = pd.read_csv(uploaded_file)
             
-            st.success(f"✅ File uploaded successfully! Found {len(df)} rows and {len(df.columns)} columns.")
+            st.header("📊 Data Preview")
+            st.write(f"**File:** {uploaded_file.name}")
+            st.write(f"**Rows:** {len(df)}")
+            st.write(f"**Columns:** {len(df.columns)}")
             
-            # Display column names
-            st.subheader("📋 Detected Columns")
-            st.write("Columns in your CSV:", list(df.columns))
-            
-            # Show preview of data
-            st.subheader("👀 Data Preview")
+            # Show first few rows
+            st.subheader("First 5 rows:")
             st.dataframe(df.head())
             
+            # Show column names
+            st.subheader("Available Columns:")
+            st.write(list(df.columns))
+            
             # Generate labels button
+            st.markdown("---")
+            
             if st.button("🏷️ Generate Labels", type="primary", use_container_width=True):
-                with st.spinner("Generating labels... Please wait"):
-                    pdf_bytes, found_columns = generate_sticker_labels(
-                        df, 
-                        line_loc_header_width, 
-                        line_loc_box1_width,
-                        line_loc_box2_width, 
-                        line_loc_box3_width, 
-                        line_loc_box4_width,
-                        uploaded_logo, 
-                        uploaded_first_box_logo
-                    )
-                    
-                    if pdf_bytes:
-                        st.success("✅ Labels generated successfully!")
-                        
-                        # Show which columns were found
-                        st.subheader("🔍 Column Mapping Results")
-                        if found_columns:
-                            for key, col_name in found_columns.items():
-                                st.write(f"**{key.upper()}**: {col_name}")
-                        
-                        # Download button
-                        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                        filename = f"instor_labels_{timestamp}.pdf"
-                        
-                        st.download_button(
-                            label="📥 Download PDF Labels",
-                            data=pdf_bytes,
-                            file_name=filename,
-                            mime="application/pdf",
-                            type="primary",
-                            use_container_width=True
+                with st.spinner("Generating labels... Please wait."):
+                    try:
+                        pdf_bytes, found_columns = generate_sticker_labels(
+                            df,
+                            line_loc_header_width,
+                            line_loc_box1_width,
+                            line_loc_box2_width,
+                            line_loc_box3_width,
+                            line_loc_box4_width,
+                            uploaded_logo
                         )
                         
-                        st.info(f"📄 Generated {len(df)} label(s) in PDF format")
-                    else:
-                        st.error("❌ Failed to generate labels. Please check your data and try again.")
+                        if pdf_bytes and found_columns:
+                            st.success("✅ Labels generated successfully!")
+                            
+                            # Show column mapping
+                            st.subheader("📋 Column Mapping Used:")
+                            for key, value in found_columns.items():
+                                st.write(f"**{key.upper()}:** {value}")
+                            
+                            # Download button
+                            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                            filename = f"instor_labels_{timestamp}.pdf"
+                            
+                            st.download_button(
+                                label="📥 Download Labels PDF",
+                                data=pdf_bytes,
+                                file_name=filename,
+                                mime="application/pdf",
+                                type="primary",
+                                use_container_width=True
+                            )
+                            
+                            st.info(f"📄 Generated {len(df)} labels in PDF format")
+                        else:
+                            st.error("❌ Failed to generate labels. Please check your data and try again.")
+                            
+                    except Exception as e:
+                        st.error(f"❌ Error generating labels: {str(e)}")
+                        st.error("Please check your CSV file format and column names.")
         
         except Exception as e:
-            st.error(f"❌ Error processing file: {str(e)}")
+            st.error(f"❌ Error reading CSV file: {str(e)}")
+            st.error("Please make sure you uploaded a valid CSV file.")
     
     else:
-        st.info("👆 Please upload a CSV file to begin generating labels")
-    
+        st.info("👆 Please upload a CSV file to get started.")
+        
+        # Show sample data format
+        st.header("📋 Expected CSV Format")
+        st.markdown("""
+        Your CSV file should contain columns with names similar to these (case-insensitive):
+        
+        **Required Columns:**
+        - **ASSLY** (Assembly name)
+        - **PARTNO** (Part number)  
+        - **DESCRIPTION** (Part description)
+        
+        **Optional Columns:**
+        - **QTY** (Quantity per bin)
+        - **TYPE** (Part type)
+        - **LINE LOCATION** (Location data, format: box1_box2_box3_box4)
+        
+        The system will automatically detect column names even if they have slight variations.
+        """)
+        
+        # Sample data
+        sample_data = {
+            'ASSLY': ['Dashboard Assembly', 'Engine Block', 'Transmission'],
+            'PARTNO': ['DB-001', 'EB-002', 'TR-003'],
+            'DESCRIPTION': ['Main Dashboard Unit', 'V6 Engine Block', 'Auto Transmission'],
+            'QYT': [2, 1, 1],
+            'TYPE': ['Interior', 'Engine', 'Drivetrain'],
+            'LINE LOCATION': ['A1_B2_C3_D4', 'E1_F2_G3_H4', 'I1_J2_K3_L4']
+        }
+        
+        sample_df = pd.DataFrame(sample_data)
+        st.subheader("Sample Data Format:")
+        st.dataframe(sample_df)
+
     # Footer
     st.markdown("---")
     st.markdown(
         """
-        <div style='text-align: center; color: #666; padding: 20px;'>
-            <p>🏷️ <strong>Instor Label Generator</strong> | Generate professional labels with QR codes and logos</p>
-            <p><em>Supports custom logos, line location parsing, and automatic column detection</em></p>
+        <div style='text-align: center; color: #666; font-size: 0.9em;'>
+            🏷️ Instor Label Generator v2.0 | Built with Streamlit
         </div>
-        """, 
+        """,
         unsafe_allow_html=True
     )
 
