@@ -22,7 +22,7 @@ STICKER_HEIGHT = 15 * cm
 STICKER_PAGESIZE = (STICKER_WIDTH, STICKER_HEIGHT)
 
 # Define content box dimensions - FIXED: Proper content width calculation
-CONTENT_BOX_WIDTH = 9.8 * cm  # Reduced to ensure proper margins
+CONTENT_BOX_WIDTH = 10 * cm  # Reduced to ensure proper margins
 CONTENT_BOX_HEIGHT = 5 * cm
 
 def normalize_column_name(col_name):
