@@ -264,13 +264,13 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
             location_box_3 = Paragraph(location_boxes[2], location_style) if location_boxes[2] else ""
             location_box_4 = Paragraph(location_boxes[3], location_style) if location_boxes[3] else ""
 
-            # Create ASSLY row - 3 boxes: Logo, "ASSLY" header, ASSLY value
+            # Create ASSLY row - Only 3 boxes: Logo, "ASSLY" header, ASSLY value
             first_box_content = first_box_logo if first_box_logo else ""  # Your uploaded logo or empty
             
-            # Create table data with ASSLY row structure (3 columns instead of 4)
+            # Create table data with ASSLY row structure (3 columns only)
             unified_table_data = [
-                [first_box_content, "ASSLY", ASSLY],                         # 3 columns for ASSLY row
-                ["PART NO", part_no],                                        # 2 columns for other rows
+                [first_box_content, "ASSLY", ASSLY],                      # 3 columns for ASSLY row: Logo, Header, Value
+                ["PART NO", part_no],                                     # 2 columns for other rows
                 ["PART DESC", desc],
                 ["PART PER VEH", Paragraph(str(Part_per_veh), partper_style), qr_cell],
                 ["TYPE", Paragraph(str(Type), Type_style), ""],
@@ -278,8 +278,8 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
                 ["LINE LOCATION", location_box_1, location_box_2, location_box_3, location_box_4]
             ]
 
-            # Adjusted column widths for ASSLY row - 3 columns
-            col_widths_assly = [content_width*0.2, content_width*0.25, content_width*0.55]  # Logo, Header, Value
+            # Adjusted column widths for ASSLY row - 3 columns only
+            col_widths_assly = [content_width*0.2, content_width*0.3, content_width*0.5]  # Logo, Header, Value
             col_widths_top = [content_width*0.3, content_width*0.7]                        # Regular 2-column rows
             col_widths_middle = [content_width*0.3, content_width*0.3, content_width*0.4]   # 3-column with QR
             col_widths_bottom = [
@@ -298,13 +298,13 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
             middle_table = Table(unified_table_data[3:6], colWidths=col_widths_middle, rowHeights=row_heights[3:6])
             bottom_table = Table([unified_table_data[6]], colWidths=col_widths_bottom, rowHeights=[row_heights[6]])
 
-            # Apply styles for ASSLY table (3 columns)
+            # Apply styles
             assly_style = [
                 ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
                 ('FONTNAME', (1, 0), (1, 0), 'Helvetica-Bold'),  # ASSLY header bold
                 ('FONTSIZE', (0, 0), (-1, -1), 10),
-                ('ALIGN', (0, 0), (0, 0), 'CENTER'),  # First box logo centered
-                ('ALIGN', (1, 0), (1, 0), 'CENTER'),  # Header centered  
+                ('ALIGN', (0, 0), (0, 0), 'CENTER'),  # Logo box centered
+                ('ALIGN', (1, 0), (1, 0), 'CENTER'),  # Header centered
                 ('ALIGN', (2, 0), (2, 0), 'LEFT'),    # Value left aligned
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                 ('GRID', (0, 0), (-1, -1), 1, colors.black),
@@ -502,13 +502,18 @@ def main():
             ### Logo Guidelines:
             - **Supported formats**: PNG, JPG, JPEG
             - **Automatic resizing**: The logo will be automatically resized to fit the first box
-            - **Position**: Logo appears in the first box of the ASSLY row (3-box layout: Logo | ASSLY | Value)
+            - **Position**: Logo appears in the first box of the ASSLY row
             - **Optional**: You can generate stickers without a logo too
             """)
 
     # Tab 3: Settings
     with tab3:
         st.header("⚙️ Configuration Settings")
+        
+        # ASSLY row configuration
+        st.subheader("🏷️ ASSLY Row Layout")
+        st.markdown("The ASSLY row has 3 boxes: **Logo (20%)** | **'ASSLY' Header (30%)** | **ASSLY Value (50%)**")
+        st.info("✅ Fixed 3-box layout for perfect fit within 10cm content width")
         
         # Line location configuration
         st.subheader("📍 Line Location Layout")
@@ -541,104 +546,111 @@ def main():
         line_loc_box3_width = st.slider(
             "Box 3 Width", 
             min_value=0.05, max_value=remaining_width3*0.8, value=remaining_width3*0.5, step=0.05,
-            help="Width of third location box"
+            help = "Width of third location box"
         )
-        
+
         line_loc_box4_width = remaining_width3 - line_loc_box3_width
         
-        st.write(f"Box 4 Width: {line_loc_box4_width:.2f} (auto-calculated)")
-        
-        # Show width distribution
-        col1, col2, col3, col4, col5 = st.columns([
-            line_loc_header_width, 
-            line_loc_box1_width,
-            line_loc_box2_width, 
-            line_loc_box3_width,
-            line_loc_box4_width
-        ])
-        
+        # Display width summary
+        st.markdown("**Width Distribution Summary:**")
+        col1, col2, col3, col4, col5 = st.columns(5)
         with col1:
-            st.info("Header")
+            st.metric("Header", f"{line_loc_header_width:.2f}")
         with col2:
-            st.info("Box 1")
+            st.metric("Box 1", f"{line_loc_box1_width:.2f}")
         with col3:
-            st.info("Box 2")
+            st.metric("Box 2", f"{line_loc_box2_width:.2f}")
         with col4:
-            st.info("Box 3")
+            st.metric("Box 3", f"{line_loc_box3_width:.2f}")
         with col5:
-            st.info("Box 4")
+            st.metric("Box 4", f"{line_loc_box4_width:.2f}")
         
-        # Additional settings
-        st.subheader("🎨 Display Options")
-        show_progress = st.checkbox("Show progress bar during generation", value=True)
-        
-        st.subheader("📄 Output Settings")
-        include_timestamp = st.checkbox("Include timestamp in filename", value=True)
-        
-    # Main generation section
-    st.markdown("---")
-    st.header("🚀 Generate Sticker Labels")
+        # Validate total width
+        total_width = line_loc_header_width + line_loc_box1_width + line_loc_box2_width + line_loc_box3_width + line_loc_box4_width
+        if abs(total_width - 1.0) > 0.01:
+            st.warning(f"⚠️ Total width: {total_width:.3f} (should be 1.0)")
+        else:
+            st.success(f"✅ Total width: {total_width:.3f}")
+
+    # Generate stickers section
+    st.header("🚀 Generate Stickers")
     
     if st.session_state.uploaded_file is not None:
-        # Read the data again for generation
         try:
+            # Read the uploaded file
             if st.session_state.uploaded_file.name.endswith('.csv'):
                 df = pd.read_csv(st.session_state.uploaded_file)
             else:
                 df = pd.read_excel(st.session_state.uploaded_file)
             
-            col1, col2 = st.columns([3, 1])
+            # Show generation options
+            col1, col2 = st.columns([2, 1])
             
             with col1:
-                st.write(f"📊 Ready to generate **{len(df)}** sticker labels")
+                st.info(f"📊 Ready to generate stickers for {len(df)} records")
                 if st.session_state.uploaded_logo is not None:
-                    st.write("🖼️ Logo will be included in stickers")
+                    st.success("🖼️ Logo will be included in stickers")
                 else:
-                    st.write("ℹ️ No logo selected - stickers will be generated without logo")
+                    st.info("🖼️ No logo uploaded - stickers will be generated without logo")
             
             with col2:
-                if st.button("🏷️ Generate Labels", type="primary", use_container_width=True):
-                    with st.spinner("🔄 Generating sticker labels..."):
-                        pdf_data, filename = generate_sticker_labels(
-                            df=df,
-                            line_loc_header_width=line_loc_header_width,
-                            line_loc_box1_width=line_loc_box1_width,
-                            line_loc_box2_width=line_loc_box2_width,
-                            line_loc_box3_width=line_loc_box3_width,
-                            line_loc_box4_width=line_loc_box4_width,
-                            uploaded_first_box_logo=st.session_state.uploaded_logo
+                generate_button = st.button(
+                    "🏷️ Generate Stickers", 
+                    type="primary",
+                    use_container_width=True
+                )
+            
+            if generate_button:
+                with st.spinner("🔄 Generating stickers... This may take a few moments."):
+                    pdf_data, filename = generate_sticker_labels(
+                        df,
+                        line_loc_header_width,
+                        line_loc_box1_width,
+                        line_loc_box2_width,
+                        line_loc_box3_width,
+                        line_loc_box4_width,
+                        st.session_state.uploaded_logo
+                    )
+                    
+                    if pdf_data:
+                        st.balloons()
+                        
+                        # Download button
+                        st.download_button(
+                            label="📥 Download Sticker Labels PDF",
+                            data=pdf_data,
+                            file_name=filename,
+                            mime="application/pdf",
+                            type="primary",
+                            use_container_width=True
                         )
                         
-                        if pdf_data:
-                            st.success("✅ Labels generated successfully!")
-                            
-                            # Download button
-                            st.download_button(
-                                label="📥 Download PDF",
-                                data=pdf_data,
-                                file_name=filename,
-                                mime="application/pdf",
-                                use_container_width=True
-                            )
-                            
-                            # Show file info
-                            st.info(f"📄 File size: {len(pdf_data) / 1024:.2f} KB")
-                        else:
-                            st.error("❌ Failed to generate labels. Please check your data and try again.")
-            
+                        st.success("🎉 Stickers generated successfully! Click the download button above.")
+                        
+                        # Show PDF info
+                        st.info(f"📄 Generated: {filename} ({len(pdf_data)} bytes)")
+                    else:
+                        st.error("❌ Failed to generate stickers. Please check your data and try again.")
+                        
         except Exception as e:
             st.error(f"❌ Error processing data: {str(e)}")
+            st.info("💡 Please ensure your file is properly formatted.")
     else:
-        st.warning("⚠️ Please upload a data file in the 'Upload Data' tab first.")
-        
+        st.warning("⚠️ Please upload a data file first to generate stickers.")
+        st.info("👆 Go to the 'Upload Data' tab to get started.")
+
     # Footer
     st.markdown("---")
-    st.markdown("""
-    <div style='text-align: center; color: #666; font-size: 0.9em;'>
-        🏷️ Sticker Label Generator | Built with Streamlit & ReportLab
-    </div>
-    """, unsafe_allow_html=True)
-
+    st.markdown(
+        """
+        <div style='text-align: center; color: #666; padding: 20px;'>
+            <p>🏷️ <strong>Sticker Label Generator</strong></p>
+            <p>Generate professional sticker labels with QR codes from your CSV/Excel data</p>
+            <p><small>Built with Streamlit • ReportLab • PIL</small></p>
+        </div>
+        """, 
+        unsafe_allow_html=True
+    )
 
 if __name__ == "__main__":
     main()
