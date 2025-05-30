@@ -21,8 +21,8 @@ STICKER_WIDTH = 10 * cm
 STICKER_HEIGHT = 15 * cm
 STICKER_PAGESIZE = (STICKER_WIDTH, STICKER_HEIGHT)
 
-# Define content box dimensions
-CONTENT_BOX_WIDTH = 10 * cm
+# Define content box dimensions - FIXED: Proper content width calculation
+CONTENT_BOX_WIDTH = 9.6 * cm  # Reduced to ensure proper margins
 CONTENT_BOX_HEIGHT = 5 * cm
 
 def normalize_column_name(col_name):
@@ -168,25 +168,28 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
         with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
             output_pdf_path = tmp_file.name
 
-        # Create PDF
+        # Create PDF with adjusted margins
         def draw_border(canvas, doc):
             canvas.saveState()
-            x_offset = (STICKER_WIDTH - CONTENT_BOX_WIDTH) / 3
+            # FIXED: Proper border positioning to match content width
+            x_offset = (STICKER_WIDTH - CONTENT_BOX_WIDTH) / 2
             y_offset = STICKER_HEIGHT - CONTENT_BOX_HEIGHT - 0.2*cm
             canvas.setStrokeColor(colors.black)
             canvas.setLineWidth(1.5)
             canvas.rect(
-                x_offset + doc.leftMargin,
+                x_offset,
                 y_offset,
-                CONTENT_BOX_WIDTH - 0.2*cm,
+                CONTENT_BOX_WIDTH,
                 CONTENT_BOX_HEIGHT
             )
             canvas.restoreState()
 
+        # FIXED: Adjusted margins to center content properly
         doc = SimpleDocTemplate(output_pdf_path, pagesize=STICKER_PAGESIZE,
                               topMargin=0.2*cm,
                               bottomMargin=(STICKER_HEIGHT - CONTENT_BOX_HEIGHT - 0.2*cm),
-                              leftMargin=0.1*cm, rightMargin=0.1*cm)
+                              leftMargin=(STICKER_WIDTH - CONTENT_BOX_WIDTH) / 2, 
+                              rightMargin=(STICKER_WIDTH - CONTENT_BOX_WIDTH) / 2)
 
         # Define styles
         header_style = ParagraphStyle(name='HEADER', fontName='Helvetica-Bold', fontSize=10, alignment=TA_CENTER, leading=10)
@@ -198,15 +201,15 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
         date_style = ParagraphStyle(name='DATE', fontName='Helvetica', fontSize=10, alignment=TA_LEFT, leading=12)
         location_style = ParagraphStyle(name='Location', fontName='Helvetica', fontSize=9, alignment=TA_CENTER, leading=10)
 
-        # Fixed content width - total available width within the content box
-        content_width = CONTENT_BOX_WIDTH - 0.2*cm  # 9.8cm available
+        # FIXED: Use exact content width for calculations
+        content_width = CONTENT_BOX_WIDTH  # 9.6cm
         all_elements = []
         today_date = datetime.datetime.now().strftime("%d-%m-%Y")
 
         # Handle uploaded logo for first box - calculate proper dimensions
         first_box_logo = None
         if uploaded_first_box_logo is not None:
-            # Logo box will be 25% of content width and same height as ASSLY row
+            # FIXED: Logo box will be 25% of actual content width
             logo_box_width_cm = (content_width * 0.25) / cm  # Convert back to cm for processing
             logo_box_height_cm = 0.7  # ASSLY row height
             
@@ -263,8 +266,8 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
             location_box_3 = Paragraph(location_boxes[2], location_style) if location_boxes[2] else ""
             location_box_4 = Paragraph(location_boxes[3], location_style) if location_boxes[3] else ""
 
-            # Create ASSLY row - Using proportional widths within content_width
-            first_box_content = first_box_logo if first_box_logo else ""  # Your uploaded logo or empty
+            # Create ASSLY row - Using exact proportions of content width
+            first_box_content = first_box_logo if first_box_logo else ""
             
             # Create table data with ASSLY row structure (3 columns only)
             unified_table_data = [
@@ -277,8 +280,13 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
                 ["LINE LOCATION", location_box_1, location_box_2, location_box_3, location_box_4]
             ]
 
-            # FIXED: Use proportional widths for ASSLY row that fit within content_width
-            col_widths_assly = [content_width*0.25, content_width*0.25, content_width*0.50]   # Logo(25%), Header(25%), Value(50%)
+            # FIXED: Exact column widths that sum to content_width
+            col_widths_assly = [
+                content_width * 0.25,    # Logo: 25% of content width
+                content_width * 0.25,    # Header: 25% of content width  
+                content_width * 0.50     # Value: 50% of content width
+            ]                            # Total: 100% of content width
+            
             col_widths_top = [content_width*0.3, content_width*0.7]                         # Regular 2-column rows
             col_widths_middle = [content_width*0.3, content_width*0.3, content_width*0.4]   # 3-column with QR
             col_widths_bottom = [
@@ -510,88 +518,141 @@ def main():
     with tab3:
         st.header("⚙️ Configuration Settings")
         
+        # Content box info
+        st.subheader("📏 Content Box Dimensions")
+        st.info(f"**Content Box Width**: {CONTENT_BOX_WIDTH/cm:.1f}cm | **Height**: {CONTENT_BOX_HEIGHT/cm:.1f}cm")
+        
         # ASSLY row configuration
         st.subheader("🏷️ ASSLY Row Layout")
-        st.markdown("**Responsive ASSLY Row Layout:** Logo (25%) | 'ASSLY' Header (25%) | ASSLY Value (50%) = **100% of Content Width**")
+        st.markdown("**Fixed ASSLY Row Layout:** Logo (25%) | 'ASSLY' Header (25%) | ASSLY Value (50%) = **100% of Content Width**")
         
         # Visual representation
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Logo Box", "25%", help="25% of content width for logo")
+            st.metric("Logo Box", "25%", help=f"25% of {CONTENT_BOX_WIDTH/cm:.1f}cm = {(CONTENT_BOX_WIDTH*0.25)/cm:.1f}cm")
         with col2:
-            st.metric("ASSLY Header", "25%", help="25% of content width for 'ASSLY' text")
+            st.metric("ASSLY Header", "25%", help=f"25% of {CONTENT_BOX_WIDTH/cm:.1f}cm = {(CONTENT_BOX_WIDTH*0.25)/cm:.1f}cm")
         with col3:
-            st.metric("ASSLY Value", "50%", help="50% of content width for assembly name")
+            st.metric("ASSLY Value", "50%", help=f"50% of {CONTENT_BOX_WIDTH/cm:.1f}cm = {(CONTENT_BOX_WIDTH*0.50)/cm:.1f}cm")
         
-        st.success("✅ ASSLY row perfectly fits within content box using proportional widths")
+        st.success("✅ ASSLY row perfectly fits within content width!")
         
-        # Line location configuration
-        st.subheader("📍 Line Location Layout")
-        st.markdown("Configure the width distribution for line location boxes:")
+        # Line Location configuration
+        st.subheader("📍 Line Location Row Configuration")
+        st.markdown("Configure the width distribution for the Line Location row (Header + 4 boxes = 100%)")
         
-        line_loc_header_width = st.slider(
-            "Header Width", 
-            min_value=0.1, max_value=0.5, value=0.3, step=0.05,
-            help="Width of 'LINE LOCATION' header"
-        )
-        
-        remaining_width = 1.0 - line_loc_header_width
-        
-        line_loc_box1_width = st.slider(
-            "Box 1 Width", 
-            min_value=0.05, max_value=remaining_width*0.8, value=remaining_width*0.25, step=0.05,
-            help="Width of first location box"
-        )
-        
-        remaining_width2 = remaining_width - line_loc_box1_width
-
-        line_loc_box3_width = st.slider(
-            "Box 3 Width", 
-            min_value=0.05, max_value=remaining_width3*0.8, value=remaining_width3*0.5, step=0.05,
-            help="Width of third location box"
-        )
-        
-        line_loc_box4_width = remaining_width3 - line_loc_box3_width
-        
-        # Display current distribution
-        st.markdown("**Current Distribution:**")
-        total_check = line_loc_header_width + line_loc_box1_width + line_loc_box2_width + line_loc_box3_width + line_loc_box4_width
+        # Default values that sum to 1.0
+        default_header = 0.2
+        default_box = 0.2
         
         col1, col2, col3, col4, col5 = st.columns(5)
-        with col1:
-            st.metric("Header", f"{line_loc_header_width:.2f}")
-        with col2:
-            st.metric("Box 1", f"{line_loc_box1_width:.2f}")
-        with col3:
-            st.metric("Box 2", f"{line_loc_box2_width:.2f}")
-        with col4:
-            st.metric("Box 3", f"{line_loc_box3_width:.2f}")
-        with col5:
-            st.metric("Box 4", f"{line_loc_box4_width:.2f}")
         
-        if abs(total_check - 1.0) < 0.01:
-            st.success(f"✅ Total width: {total_check:.3f} (Perfect fit!)")
-        else:
-            st.warning(f"⚠️ Total width: {total_check:.3f} (Should be 1.0)")
-
-    # Generate PDF section
-    st.markdown("---")
-    
-    if st.session_state.uploaded_file is not None:
-        col1, col2, col3 = st.columns([1, 2, 1])
+        with col1:
+            line_loc_header_width = st.slider(
+                "Header Width", 
+                min_value=0.1, 
+                max_value=0.5, 
+                value=default_header, 
+                step=0.05,
+                help="Width percentage for 'LINE LOCATION' header"
+            )
+        
         with col2:
-            if st.button("🚀 Generate Sticker Labels", type="primary", use_container_width=True):
-                with st.spinner("Generating PDF... This may take a moment for large files."):
-                    try:
-                        # Read the uploaded file again
-                        if st.session_state.uploaded_file.name.endswith('.csv'):
-                            df = pd.read_csv(st.session_state.uploaded_file)
-                        else:
-                            df = pd.read_excel(st.session_state.uploaded_file)
-                        
-                        # Generate PDF
+            line_loc_box1_width = st.slider(
+                "Box 1 Width", 
+                min_value=0.1, 
+                max_value=0.5, 
+                value=default_box, 
+                step=0.05,
+                help="Width percentage for first location box"
+            )
+        
+        with col3:
+            line_loc_box2_width = st.slider(
+                "Box 2 Width", 
+                min_value=0.1, 
+                max_value=0.5, 
+                value=default_box, 
+                step=0.05,
+                help="Width percentage for second location box"
+            )
+        
+        with col4:
+            line_loc_box3_width = st.slider(
+                "Box 3 Width", 
+                min_value=0.1, 
+                max_value=0.5, 
+                value=default_box, 
+                step=0.05,
+                help="Width percentage for third location box"
+            )
+        
+        with col5:
+            line_loc_box4_width = st.slider(
+                "Box 4 Width", 
+                min_value=0.1, 
+                max_value=0.5, 
+                value=default_box, 
+                step=0.05,
+                help="Width percentage for fourth location box"
+            )
+        
+        # Calculate total width
+        total_width = line_loc_header_width + line_loc_box1_width + line_loc_box2_width + line_loc_box3_width + line_loc_box4_width
+        
+        # Display width summary
+        if abs(total_width - 1.0) < 0.01:
+            st.success(f"✅ Total width: {total_width:.2f} (Perfect fit!)")
+        elif total_width > 1.0:
+            st.error(f"❌ Total width: {total_width:.2f} (Exceeds 100% - please reduce some values)")
+        else:
+            st.warning(f"⚠️ Total width: {total_width:.2f} (Less than 100% - consider increasing some values)")
+        
+        # Show actual dimensions
+        st.markdown("**Actual Dimensions:**")
+        actual_dims = [
+            ("Header", line_loc_header_width, (CONTENT_BOX_WIDTH * line_loc_header_width) / cm),
+            ("Box 1", line_loc_box1_width, (CONTENT_BOX_WIDTH * line_loc_box1_width) / cm),
+            ("Box 2", line_loc_box2_width, (CONTENT_BOX_WIDTH * line_loc_box2_width) / cm),
+            ("Box 3", line_loc_box3_width, (CONTENT_BOX_WIDTH * line_loc_box3_width) / cm),
+            ("Box 4", line_loc_box4_width, (CONTENT_BOX_WIDTH * line_loc_box4_width) / cm)
+        ]
+        
+        dims_cols = st.columns(5)
+        for i, (name, percent, cm_width) in enumerate(actual_dims):
+            with dims_cols[i]:
+                st.metric(name, f"{percent:.0%}", f"{cm_width:.1f}cm")
+
+    # Generate Button
+    st.markdown("---")
+    st.header("🚀 Generate Sticker Labels")
+    
+    # Check if data is uploaded
+    if st.session_state.uploaded_file is not None:
+        # Read the data again for generation
+        try:
+            if st.session_state.uploaded_file.name.endswith('.csv'):
+                df = pd.read_csv(st.session_state.uploaded_file)
+            else:
+                df = pd.read_excel(st.session_state.uploaded_file)
+            
+            # Show generation summary
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Total Records", len(df))
+            with col2:
+                st.metric("Logo Status", "✅ Included" if st.session_state.uploaded_logo else "❌ None")
+            with col3:
+                st.metric("Line Location Config", "✅ Ready" if abs(total_width - 1.0) < 0.01 else "⚠️ Check Width")
+            
+            # Generate button
+            if st.button("🎯 Generate Sticker Labels", type="primary", use_container_width=True):
+                if abs(total_width - 1.0) > 0.01:
+                    st.error("❌ Please adjust the line location widths to sum to 100% before generating.")
+                else:
+                    with st.spinner("🔄 Generating sticker labels..."):
                         pdf_data, filename = generate_sticker_labels(
-                            df, 
+                            df,
                             line_loc_header_width,
                             line_loc_box1_width,
                             line_loc_box2_width,
@@ -601,7 +662,9 @@ def main():
                         )
                         
                         if pdf_data:
-                            # Provide download button
+                            st.success("🎉 Sticker labels generated successfully!")
+                            
+                            # Download button
                             st.download_button(
                                 label="📥 Download PDF",
                                 data=pdf_data,
@@ -610,52 +673,39 @@ def main():
                                 use_container_width=True
                             )
                             
-                            # Show success message with file info
-                            st.success(f"🎉 PDF generated successfully! File: {filename}")
-                            st.info(f"📊 Generated {len(df)} sticker labels with QR codes")
-                            
+                            # Show file info
+                            st.info(f"📊 Generated {len(df)} sticker labels | File size: {len(pdf_data)/1024:.1f} KB")
                         else:
-                            st.error("❌ Failed to generate PDF. Please check your data and try again.")
-                            
-                    except Exception as e:
-                        st.error(f"❌ Error generating PDF: {str(e)}")
-                        st.info("💡 Please check your file format and column names.")
+                            st.error("❌ Failed to generate sticker labels. Please check your data and try again.")
+            
+            # Preview section
+            st.markdown("---")
+            st.subheader("👀 Data Preview for Generation")
+            with st.expander("View Data to be Processed", expanded=False):
+                st.dataframe(df, use_container_width=True)
+                
+        except Exception as e:
+            st.error(f"❌ Error processing uploaded file: {str(e)}")
     else:
-        st.warning("⚠️ Please upload a data file first to generate sticker labels.")
+        st.warning("⚠️ Please upload a data file in the '📊 Upload Data' tab first.")
         
-        # Show feature highlights
-        with st.expander("✨ Features", expanded=True):
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown("""
-                **📋 Data Processing:**
-                - ✅ Auto-detects column variations
-                - ✅ Handles CSV and Excel files
-                - ✅ Flexible column naming
-                - ✅ Missing data handling
-                """)
-            with col2:
-                st.markdown("""
-                **🎨 Label Features:**
-                - ✅ Professional sticker design
-                - ✅ QR codes with full data
-                - ✅ Custom logo support
-                - ✅ Responsive layout
-                """)
+        # Show requirements again
+        st.markdown("""
+        ### 📋 Before generating sticker labels:
+        1. **Upload Data**: CSV or Excel file with required columns
+        2. **Upload Logo** (Optional): PNG, JPG, or JPEG file
+        3. **Configure Settings**: Adjust line location widths if needed
+        4. **Generate**: Click the generate button to create your PDF
+        """)
 
     # Footer
     st.markdown("---")
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.markdown(
-            """
-            <div style='text-align: center; color: #666; font-size: 14px;'>
-                🏷️ <strong>Sticker Label Generator</strong><br>
-                Generate professional labels with QR codes from your data
-            </div>
-            """, 
-            unsafe_allow_html=True
-        )
+    st.markdown("""
+    <div style='text-align: center; color: #666; font-size: 0.9em;'>
+        🏷️ Sticker Label Generator | Generate professional labels with QR codes<br>
+        Supports dynamic column mapping and flexible layout configuration
+    </div>
+    """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
