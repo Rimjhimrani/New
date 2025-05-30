@@ -407,186 +407,249 @@ def main():
     st.title("🏷️ Sticker Label Generator")
     st.markdown("Generate professional sticker labels with QR codes from your CSV/Excel data")
 
-    # Sidebar for configuration
-    st.sidebar.header("📊 Configuration")
+    # Create tabs
+    tab1, tab2, tab3 = st.tabs(["📊 Upload Data", "🖼️ Upload Logo", "⚙️ Settings"])
     
-    # File upload
-    uploaded_file = st.sidebar.file_uploader(
-        "Upload CSV or Excel file", 
-        type=['csv', 'xlsx', 'xls'],
-        help="Upload your data file containing part information"
-    )
+    # Initialize session state for uploaded files
+    if 'uploaded_file' not in st.session_state:
+        st.session_state.uploaded_file = None
+    if 'uploaded_logo' not in st.session_state:
+        st.session_state.uploaded_logo = None
     
-    # Logo upload section
-    st.sidebar.header("🖼️ Logo Upload")
-    
-    uploaded_first_box_logo = st.sidebar.file_uploader(
-        "Upload Logo for First Box (Optional)",
-        type=['png', 'jpg', 'jpeg'],
-        help="Upload a logo that will appear in the first box of the ASSLY row. The logo will be automatically resized to fit the box dimensions."
-    )
-    
-    if uploaded_first_box_logo:
-        st.sidebar.success("✅ Logo uploaded successfully!")
-        # Show logo preview
-        st.sidebar.image(uploaded_first_box_logo, caption="Uploaded Logo Preview", width=100)
-    else:
-        st.sidebar.info("ℹ️ No logo uploaded - first box will be empty")
-
-    # Line location configuration
-    st.sidebar.header("📍 Line Location Layout")
-    st.sidebar.markdown("Configure the width distribution for line location boxes:")
-    
-    line_loc_header_width = st.sidebar.slider(
-        "Header Width", 
-        min_value=0.1, max_value=0.5, value=0.3, step=0.05,
-        help="Width of 'LINE LOCATION' header"
-    )
-    
-    remaining_width = 1.0 - line_loc_header_width
-    
-    line_loc_box1_width = st.sidebar.slider(
-        "Box 1 Width", 
-        min_value=0.05, max_value=remaining_width*0.8, value=remaining_width*0.25, step=0.05,
-        help="Width of first location box"
-    )
-    
-    remaining_width2 = remaining_width - line_loc_box1_width
-    
-    line_loc_box2_width = st.sidebar.slider(
-        "Box 2 Width", 
-        min_value=0.05, max_value=remaining_width2*0.8, value=remaining_width2*0.33, step=0.05,
-        help="Width of second location box"
-    )
-    
-    remaining_width3 = remaining_width2 - line_loc_box2_width
-    
-    line_loc_box3_width = st.sidebar.slider(
-        "Box 3 Width", 
-        min_value=0.05, max_value=remaining_width3*0.8, value=remaining_width3*0.5, step=0.05,
-        help="Width of third location box"
-    )
-    
-    line_loc_box4_width = remaining_width3 - line_loc_box3_width
-    
-    st.sidebar.write(f"Box 4 Width: {line_loc_box4_width:.2f} (auto-calculated)")
-
-    # Main content area
-    if uploaded_file is not None:
-        try:
-            # Read the uploaded file
-            if uploaded_file.name.endswith('.csv'):
-                df = pd.read_csv(uploaded_file)
-            else:
-                df = pd.read_excel(uploaded_file)
-            
-            st.success(f"✅ File uploaded successfully! Found {len(df)} rows.")
-            
-            # Display data preview
-            with st.expander("📋 Data Preview", expanded=True):
-                st.dataframe(df.head(10), use_container_width=True)
-            
-            # Show column information
-            with st.expander("📝 Column Information"):
-                st.write("**Available Columns:**")
-                for i, col in enumerate(df.columns, 1):
-                    st.write(f"{i}. `{col}`")
-            
-            # Generate button
-            if st.button("🚀 Generate Sticker Labels", type="primary", use_container_width=True):
-                with st.spinner("Generating sticker labels... Please wait."):
-                    pdf_data, filename = generate_sticker_labels(
-                        df,
-                        line_loc_header_width,
-                        line_loc_box1_width,
-                        line_loc_box2_width,
-                        line_loc_box3_width,
-                        line_loc_box4_width,
-                        uploaded_first_box_logo
-                    )
-                
-                if pdf_data:
-                    # Success message and download button
-                    st.success("🎉 Sticker labels generated successfully!")
-                    
-                    # Create download button
-                    st.download_button(
-                        label="📥 Download PDF Labels",
-                        data=pdf_data,
-                        file_name=filename,
-                        mime="application/pdf",
-                        use_container_width=True
-                    )
-                    
-                    # Display file info
-                    st.info(f"📄 Generated file: `{filename}`")
-                    st.info(f"📊 Total labels: {len(df)}")
-                    
+    # Tab 1: Data Upload
+    with tab1:
+        st.header("📊 Upload Your Data File")
+        uploaded_file = st.file_uploader(
+            "Choose CSV or Excel file", 
+            type=['csv', 'xlsx', 'xls'],
+            help="Upload your data file containing part information",
+            key="data_uploader"
+        )
+        
+        if uploaded_file is not None:
+            st.session_state.uploaded_file = uploaded_file
+            try:
+                # Read the uploaded file
+                if uploaded_file.name.endswith('.csv'):
+                    df = pd.read_csv(uploaded_file)
                 else:
-                    st.error("❌ Failed to generate sticker labels. Please check your data and try again.")
+                    df = pd.read_excel(uploaded_file)
+                
+                st.success(f"✅ File uploaded successfully! Found {len(df)} rows.")
+                
+                # Display data preview
+                with st.expander("📋 Data Preview", expanded=True):
+                    st.dataframe(df.head(10), use_container_width=True)
+                
+                # Show column information
+                with st.expander("📝 Column Information"):
+                    st.write("**Available Columns:**")
+                    for i, col in enumerate(df.columns, 1):
+                        st.write(f"{i}. `{col}`")
+                        
+            except Exception as e:
+                st.error(f"❌ Error processing file: {str(e)}")
+                st.info("💡 Please ensure your file is properly formatted and contains the required columns.")
+        else:
+            st.info("👆 Please upload a CSV or Excel file to get started.")
             
-        except Exception as e:
-            st.error(f"❌ Error processing file: {str(e)}")
-            st.info("💡 Please ensure your file is properly formatted and contains the required columns.")
-    
-    else:
-        # Instructions when no file is uploaded
-        st.info("👆 Please upload a CSV or Excel file to get started.")
+            with st.expander("📖 Instructions", expanded=True):
+                st.markdown("""
+                ### Required columns in your data:
+                - **Assembly** (ASSLY, Assembly, Assembly Name, etc.)
+                - **Part Number** (Part No, PartNo, Part Number, etc.)
+                - **Description** (Description, Part Description, etc.)
+                
+                ### Optional columns:
+                - **Quantity** (QTY, Qty/Veh, Part per Veh, etc.)
+                - **Type** (Type, TYPE, etc.)
+                - **Line Location** (Line Location, LINE LOCATION, etc.)
+                """)
+
+            with st.expander("📋 Sample Data Format"):
+                st.markdown("""
+                Your CSV/Excel file should contain columns similar to:
+                
+                | ASSLY | PARTNO | DESCRIPTION | QTY/VEH | TYPE | LINE LOCATION |
+                |-------|---------|-------------|---------|------|---------------|
+                | Engine Assembly | P001 | Engine Block | 1 | Main | A1_B2_C3_D4 |
+                | Transmission | P002 | Gear Box | 1 | Sub | E5_F6_G7_H8 |
+                
+                **Note**: Column names are flexible - the app will automatically detect variations.
+                """)
+
+    # Tab 2: Logo Upload
+    with tab2:
+        st.header("🖼️ Upload Your Logo")
+        uploaded_logo = st.file_uploader(
+            "Choose logo file",
+            type=['png', 'jpg', 'jpeg'],
+            help="Upload a logo that will appear in the first box of the ASSLY row. The logo will be automatically resized to fit the box dimensions.",
+            key="logo_uploader"
+        )
         
-        with st.expander("📖 Instructions", expanded=True):
+        if uploaded_logo is not None:
+            st.session_state.uploaded_logo = uploaded_logo
+            st.success("✅ Logo uploaded successfully!")
+            
+            # Show logo preview
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                st.image(uploaded_logo, caption="Uploaded Logo Preview", width=200)
+                
+            st.info("ℹ️ This logo will be placed in the first box of each sticker and automatically resized to fit perfectly.")
+        else:
+            st.info("👆 Upload a logo file (PNG, JPG, JPEG) to include it in your stickers.")
             st.markdown("""
-            ### How to use this application:
-            
-            1. **Upload your data file** (CSV or Excel) using the sidebar
-            2. **Optional**: Upload a logo for the first box in the ASSLY row
-            3. **Configure** the line location box widths if needed
-            4. **Click** "Generate Sticker Labels" to create your PDF
-            5. **Download** the generated PDF file
-            
-            ### Required columns in your data:
-            - **Assembly** (ASSLY, Assembly, Assembly Name, etc.)
-            - **Part Number** (Part No, PartNo, Part Number, etc.)
-            - **Description** (Description, Part Description, etc.)
-            
-            ### Optional columns:
-            - **Quantity** (QTY, Qty/Veh, Part per Veh, etc.)
-            - **Type** (Type, TYPE, etc.)
-            - **Line Location** (Line Location, LINE LOCATION, etc.)
-            """)
-        
-        with st.expander("🎯 Features"):
-            st.markdown("""
-            - ✅ **QR Code Generation**: Each label includes a QR code with all part information
-            - ✅ **Logo Upload**: Upload your company logo for the first box
-            - ✅ **Flexible Layout**: Adjustable line location box widths
-            - ✅ **Professional Design**: Clean, organized sticker layout
-            - ✅ **Batch Processing**: Generate multiple labels at once
-            - ✅ **Smart Column Detection**: Automatically finds relevant columns
-            - ✅ **Date Stamping**: Includes current date on each label
+            ### Logo Guidelines:
+            - **Supported formats**: PNG, JPG, JPEG
+            - **Automatic resizing**: The logo will be automatically resized to fit the first box
+            - **Position**: Logo appears in the first box of the ASSLY row
+            - **Optional**: You can generate stickers without a logo too
             """)
 
-        with st.expander("📋 Sample Data Format"):
+    # Tab 3: Settings
+    with tab3:
+        st.header("⚙️ Configuration Settings")
+        
+        # Line location configuration
+        st.subheader("📍 Line Location Layout")
+        st.markdown("Configure the width distribution for line location boxes:")
+        
+        line_loc_header_width = st.slider(
+            "Header Width", 
+            min_value=0.1, max_value=0.5, value=0.3, step=0.05,
+            help="Width of 'LINE LOCATION' header"
+        )
+        
+        remaining_width = 1.0 - line_loc_header_width
+        
+        line_loc_box1_width = st.slider(
+            "Box 1 Width", 
+            min_value=0.05, max_value=remaining_width*0.8, value=remaining_width*0.25, step=0.05,
+            help="Width of first location box"
+        )
+        
+        remaining_width2 = remaining_width - line_loc_box1_width
+        
+        line_loc_box2_width = st.slider(
+            "Box 2 Width", 
+            min_value=0.05, max_value=remaining_width2*0.8, value=remaining_width2*0.33, step=0.05,
+            help="Width of second location box"
+        )
+        
+        remaining_width3 = remaining_width2 - line_loc_box2_width
+        
+        line_loc_box3_width = st.slider(
+            "Box 3 Width", 
+            min_value=0.05, max_value=remaining_width3*0.8, value=remaining_width3*0.5, step=0.05,
+            help="Width of third location box"
+        )
+        
+        line_loc_box4_width = remaining_width3 - line_loc_box3_width
+        
+        st.write(f"Box 4 Width: {line_loc_box4_width:.2f} (auto-calculated)")
+        
+        # Show width distribution
+        col1, col2, col3, col4, col5 = st.columns([
+            line_loc_header_width, 
+            line_loc_box1_width, 
+            line_loc_box2_width, 
+            line_loc_box3_width, 
+            line_loc_box4_width
+        ])
+        
+        with col1:
+            st.info("Header")
+        with col2:
+            st.success("Box 1")
+        with col3:
+            st.warning("Box 2")
+        with col4:
+            st.error("Box 3")
+        with col5:
+            st.info("Box 4")
+        
+        # Additional settings
+        st.subheader("🎨 Additional Settings")
+        
+        # QR code settings
+        with st.expander("QR Code Settings"):
             st.markdown("""
-            Your CSV/Excel file should contain columns similar to:
-            
-            | ASSLY | PARTNO | DESCRIPTION | QTY/VEH | TYPE | LINE LOCATION |
-            |-------|---------|-------------|---------|------|---------------|
-            | Engine Assembly | P001 | Engine Block | 1 | Main | A1_B2_C3_D4 |
-            | Transmission | P002 | Gear Box | 1 | Sub | E5_F6_G7_H8 |
-            
-            **Note**: Column names are flexible - the app will automatically detect variations.
+            - **Size**: 1.8cm x 1.8cm (fixed)
+            - **Error Correction**: Medium level
+            - **Content**: Includes all part information and generation date
             """)
+        
+        # Sticker dimensions info
+        with st.expander("Sticker Dimensions"):
+            st.markdown("""
+            - **Sticker Size**: 10cm x 15cm
+            - **Content Area**: 9.8cm x 5cm
+            - **Border**: 1.5pt black border
+            """)
+
+    # Generation section
+    if st.session_state.uploaded_file is not None:
+        st.header("🚀 Generate Sticker Labels")
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            if st.button("🏷️ Generate PDF Labels", type="primary", use_container_width=True):
+                with st.spinner("Generating sticker labels..."):
+                    # Read the data again for processing
+                    if st.session_state.uploaded_file.name.endswith('.csv'):
+                        df = pd.read_csv(st.session_state.uploaded_file)
+                    else:
+                        df = pd.read_excel(st.session_state.uploaded_file)
+                    
+                    # Generate PDF
+                    pdf_data, filename = generate_sticker_labels(
+                        df, 
+                        line_loc_header_width, 
+                        line_loc_box1_width,
+                        line_loc_box2_width, 
+                        line_loc_box3_width, 
+                        line_loc_box4_width,
+                        st.session_state.uploaded_logo
+                    )
+                    
+                    if pdf_data:
+                        # Provide download button
+                        st.download_button(
+                            label="📥 Download PDF",
+                            data=pdf_data,
+                            file_name=filename,
+                            mime="application/pdf",
+                            type="primary",
+                            use_container_width=True
+                        )
+                        
+                        st.balloons()
+                    else:
+                        st.error("❌ Failed to generate PDF. Please check your data and try again.")
+        
+        with col2:
+            st.info("""
+            **Generation Process:**
+            1. Validates data columns
+            2. Processes logo (if uploaded)
+            3. Generates QR codes
+            4. Creates PDF stickers
+            5. Provides download link
+            """)
+    
+    else:
+        st.info("📊 Please upload a data file first to enable PDF generation.")
 
     # Footer
     st.markdown("---")
-    st.markdown(
-        """
-        <div style='text-align: center; color: #666; font-size: 0.9em;'>
-            🏷️ Sticker Label Generator | Built with Streamlit & ReportLab
-        </div>
-        """, 
-        unsafe_allow_html=True
-    )
+    st.markdown("""
+    <div style='text-align: center; color: #666;'>
+        🏷️ Sticker Label Generator | Built with Streamlit & ReportLab
+    </div>
+    """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
