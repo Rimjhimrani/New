@@ -5,7 +5,6 @@ import re
 import datetime
 from io import BytesIO
 import tempfile
-import requests
 from PIL import Image as PILImage, ImageDraw, ImageFont
 import base64
 
@@ -52,8 +51,8 @@ def find_column(df, possible_names):
 
     return None
 
-def create_first_box_logo_from_upload(uploaded_logo):
-    """Create first box logo from uploaded file with exact dimensions"""
+def process_uploaded_logo(uploaded_logo):
+    """Process uploaded logo to fit the first box dimensions"""
     try:
         # Load image from uploaded file
         logo_img = PILImage.open(uploaded_logo)
@@ -93,42 +92,7 @@ def create_first_box_logo_from_upload(uploaded_logo):
         return Image(img_buffer, width=final_width, height=final_height)
         
     except Exception as e:
-        st.error(f"Error processing uploaded first box logo: {e}")
-        return None
-
-def create_instor_logo_from_url():
-    """Create Instor logo from the specified URL"""
-    try:
-        logo_url = "https://th.bing.com/th/id/OIP.94bEOtZbX8bq0cidAShqJwAAAA?rs=1&pid=ImgDetMain"
-        
-        # Download the image
-        response = requests.get(logo_url, timeout=10)
-        response.raise_for_status()
-        
-        # Load image from response content
-        logo_img = PILImage.open(BytesIO(response.content))
-        
-        # Convert to RGB if necessary
-        if logo_img.mode in ('RGBA', 'LA', 'P'):
-            # Create white background
-            background = PILImage.new('RGB', logo_img.size, (255, 255, 255))
-            if logo_img.mode == 'P':
-                logo_img = logo_img.convert('RGBA')
-            background.paste(logo_img, mask=logo_img.split()[-1] if logo_img.mode in ('RGBA', 'LA') else None)
-            logo_img = background
-        
-        # Resize logo to appropriate size for label
-        logo_img = logo_img.resize((120, 40), PILImage.Resampling.LANCZOS)
-        
-        # Convert to bytes for ReportLab
-        img_buffer = BytesIO()
-        logo_img.save(img_buffer, format='PNG')
-        img_buffer.seek(0)
-        
-        return Image(img_buffer, width=2*cm, height=0.8*cm)
-        
-    except Exception as e:
-        st.warning(f"Error loading logo from URL: {e}")
+        st.error(f"Error processing uploaded logo: {e}")
         return None
 
 def generate_qr_code(data_string):
@@ -170,7 +134,7 @@ def parse_line_location(location_string):
 def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width, 
                           line_loc_box2_width, line_loc_box3_width, line_loc_box4_width, 
                           uploaded_first_box_logo=None):
-    """Generate sticker labels with QR code and logos from DataFrame"""
+    """Generate sticker labels with QR code from DataFrame"""
     try:
         # Define column mappings
         column_mappings = {
@@ -244,23 +208,14 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
         all_elements = []
         today_date = datetime.datetime.now().strftime("%d-%m-%Y")
 
-        # Handle first box logo (only from uploaded file)
+        # Handle uploaded logo for first box
         first_box_logo = None
         if uploaded_first_box_logo is not None:
-            first_box_logo = create_first_box_logo_from_upload(uploaded_first_box_logo)
+            first_box_logo = process_uploaded_logo(uploaded_first_box_logo)
             if first_box_logo:
                 st.success("✅ Using your uploaded logo for first box")
             else:
-                st.error("❌ Failed to process uploaded first box logo")
-        else:
-            st.info("ℹ️ No logo uploaded for first box - first box will be empty")
-
-        # Handle Instor logo (from URL only)
-        instor_logo = create_instor_logo_from_url()
-        if instor_logo:
-            st.info("🌐 Using Instor logo from URL for second box")
-        else:
-            st.warning("⚠️ Could not load Instor logo from URL")
+                st.error("❌ Failed to process uploaded logo")
 
         # Process each row
         total_rows = len(df)
@@ -309,13 +264,13 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
             location_box_3 = Paragraph(location_boxes[2], location_style) if location_boxes[2] else ""
             location_box_4 = Paragraph(location_boxes[3], location_style) if location_boxes[3] else ""
 
-            # Create ASSLY row with 4 boxes: First Box Logo, Instor Logo, "ASSLY", Value
+            # Create ASSLY row - First box contains uploaded logo (or empty), second box empty, third box "ASSLY", fourth box value
             first_box_content = first_box_logo if first_box_logo else ""  # Your uploaded logo or empty
-            second_box_content = instor_logo if instor_logo else ""       # Instor logo
+            second_box_content = ""  # Empty second box
             
-            # Create table data with modified ASSLY row structure (4 columns)
+            # Create table data with ASSLY row structure (4 columns)
             unified_table_data = [
-                [first_box_content, second_box_content, "ASSLY", ASSLY],  # Modified: 4 columns for ASSLY row
+                [first_box_content, second_box_content, "ASSLY", ASSLY],  # 4 columns for ASSLY row
                 ["PART NO", part_no],                                     # 2 columns for other rows
                 ["PART DESC", desc],
                 ["PART PER VEH", Paragraph(str(Part_per_veh), partper_style), qr_cell],
@@ -325,7 +280,7 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
             ]
 
             # Adjusted column widths for ASSLY row - 4 columns
-            col_widths_assly = [content_width*0.15, content_width*0.2, content_width*0.2, content_width*0.45]  # First Logo, Instor Logo, Header, Value
+            col_widths_assly = [content_width*0.15, content_width*0.2, content_width*0.2, content_width*0.45]  # First Logo, Empty, Header, Value
             col_widths_top = [content_width*0.3, content_width*0.7]                        # Regular 2-column rows
             col_widths_middle = [content_width*0.3, content_width*0.3, content_width*0.4]   # 3-column with QR
             col_widths_bottom = [
@@ -350,7 +305,7 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
                 ('FONTNAME', (2, 0), (2, 0), 'Helvetica-Bold'),  # ASSLY header bold
                 ('FONTSIZE', (0, 0), (-1, -1), 10),
                 ('ALIGN', (0, 0), (0, 0), 'CENTER'),  # First box logo centered
-                ('ALIGN', (1, 0), (1, 0), 'CENTER'),  # Instor logo centered
+                ('ALIGN', (1, 0), (1, 0), 'CENTER'),  # Second box centered
                 ('ALIGN', (2, 0), (2, 0), 'CENTER'),  # Header centered
                 ('ALIGN', (3, 0), (3, 0), 'LEFT'),    # Value left aligned
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -462,13 +417,13 @@ def main():
         help="Upload your data file containing part information"
     )
     
-    # Logo upload (only for first box)
-    st.sidebar.header("🖼️ Logo Configuration")
+    # Logo upload section
+    st.sidebar.header("🖼️ Logo Upload")
     
     uploaded_first_box_logo = st.sidebar.file_uploader(
-        "Upload First Box Logo (Optional)",
+        "Upload Logo for First Box (Optional)",
         type=['png', 'jpg', 'jpeg'],
-        help="Upload a logo for the first box in the ASSLY row. Logo will be resized to fit the first box dimensions."
+        help="Upload a logo that will appear in the first box of the ASSLY row. The logo will be automatically resized to fit the box dimensions."
     )
     
     if uploaded_first_box_logo:
@@ -602,12 +557,36 @@ def main():
         with st.expander("🎯 Features"):
             st.markdown("""
             - ✅ **QR Code Generation**: Each label includes a QR code with all part information
-            - ✅ **Logo Support**: Add your company logo to the first box
-            - ✅ **Flexible Column Mapping**: Automatically detects various column name formats
-            - ✅ **Customizable Layout**: Adjust line location box widths
-            - ✅ **Professional Design**: Clean, print-ready sticker labels
-            - ✅ **Multiple Formats**: Supports CSV and Excel files
+            - ✅ **Logo Upload**: Upload your company logo for the first box
+            - ✅ **Flexible Layout**: Adjustable line location box widths
+            - ✅ **Professional Design**: Clean, organized sticker layout
+            - ✅ **Batch Processing**: Generate multiple labels at once
+            - ✅ **Smart Column Detection**: Automatically finds relevant columns
+            - ✅ **Date Stamping**: Includes current date on each label
             """)
+
+        with st.expander("📋 Sample Data Format"):
+            st.markdown("""
+            Your CSV/Excel file should contain columns similar to:
+            
+            | ASSLY | PARTNO | DESCRIPTION | QTY/VEH | TYPE | LINE LOCATION |
+            |-------|---------|-------------|---------|------|---------------|
+            | Engine Assembly | P001 | Engine Block | 1 | Main | A1_B2_C3_D4 |
+            | Transmission | P002 | Gear Box | 1 | Sub | E5_F6_G7_H8 |
+            
+            **Note**: Column names are flexible - the app will automatically detect variations.
+            """)
+
+    # Footer
+    st.markdown("---")
+    st.markdown(
+        """
+        <div style='text-align: center; color: #666; font-size: 0.9em;'>
+            🏷️ Sticker Label Generator | Built with Streamlit & ReportLab
+        </div>
+        """, 
+        unsafe_allow_html=True
+    )
 
 if __name__ == "__main__":
     main()
