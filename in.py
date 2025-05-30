@@ -520,9 +520,9 @@ def main():
         with col1:
             st.metric("Logo Box", "3.0 cm", help="Fixed width for logo")
         with col2:
-            st.metric("ASSLY Header", "3.0 cm", help="Fixed width for 'ASSLY' text")
+            st.metric("ASSLY Header", "2.0 cm", help="Fixed width for 'ASSLY' text")
         with col3:
-            st.metric("ASSLY Value", "4.0 cm", help="Fixed width for assembly name")
+            st.metric("ASSLY Value", "3.0 cm", help="Fixed width for assembly name")
         
         st.success("✅ ASSLY row perfectly fits within 10cm content box")
         
