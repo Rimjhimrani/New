@@ -546,163 +546,184 @@ def main():
     
     # Sidebar for configuration
     st.sidebar.header("Configuration")
-    st.sidebar.markdown("### Line Location Box Widths")
-    st.sidebar.caption("(proportional values)")
+    st.sidebar.subheader("Line Location Column Widths")
+    st.sidebar.caption("Adjust the relative widths of line location columns (total should = 1.0)")
     
-    header_width = st.sidebar.number_input("Header Width", value=0.3, step=0.01, format="%.2f")
-    box1_width = st.sidebar.number_input("Box 1 Width", value=0.2, step=0.01, format="%.2f")
-    box2_width = st.sidebar.number_input("Box 2 Width", value=0.25, step=0.01, format="%.2f")
-    box3_width = st.sidebar.number_input("Box 3 Width", value=0.15, step=0.01, format="%.2f")
-    box4_width = st.sidebar.number_input("Box 4 Width", value=0.1, step=0.01, format="%.2f")
+    line_loc_header_width = st.sidebar.slider(
+        "Header Width", 
+        min_value=0.1, 
+        max_value=0.5, 
+        value=0.2, 
+        step=0.05,
+        help="Width of 'LINE LOCATION' header column"
+    )
     
-    # Processing section
-    st.markdown("---")
-    st.header("📋 Preview & Generate")
+    line_loc_box1_width = st.sidebar.slider(
+        "Box 1 Width", 
+        min_value=0.1, 
+        max_value=0.4, 
+        value=0.2, 
+        step=0.05,
+        help="Width of first location box"
+    )
     
+    line_loc_box2_width = st.sidebar.slider(
+        "Box 2 Width", 
+        min_value=0.1, 
+        max_value=0.4, 
+        value=0.2, 
+        step=0.05,
+        help="Width of second location box"
+    )
+    
+    line_loc_box3_width = st.sidebar.slider(
+        "Box 3 Width", 
+        min_value=0.1, 
+        max_value=0.4, 
+        value=0.2, 
+        step=0.05,
+        help="Width of third location box"
+    )
+    
+    line_loc_box4_width = st.sidebar.slider(
+        "Box 4 Width", 
+        min_value=0.1, 
+        max_value=0.4, 
+        value=0.2, 
+        step=0.05,
+        help="Width of fourth location box"
+    )
+    
+    # Display total width
+    total_width = line_loc_header_width + line_loc_box1_width + line_loc_box2_width + line_loc_box3_width + line_loc_box4_width
+    if abs(total_width - 1.0) > 0.01:
+        st.sidebar.warning(f"⚠️ Total width: {total_width:.2f} (should be 1.0)")
+    else:
+        st.sidebar.success(f"✅ Total width: {total_width:.2f}")
+    
+    # Main processing area
     if uploaded_file is not None:
         try:
-            # Load the data
-            if uploaded_file.name.lower().endswith('.csv'):
+            # Load data
+            if uploaded_file.name.endswith('.csv'):
                 df = pd.read_csv(uploaded_file)
-                
             else:
                 df = pd.read_excel(uploaded_file)
             
             st.success(f"✅ File loaded successfully! Found {len(df)} rows and {len(df.columns)} columns.")
             
-            # Show column mapping preview
+            # Display data preview
             st.subheader("📊 Data Preview")
-            st.dataframe(df.head(), use_container_width=True)
+            st.write(f"**Shape:** {df.shape[0]} rows × {df.shape[1]} columns")
             
-            # Show detected columns
-            column_mappings = {
-                'ASSLY': ['assly', 'ASSY NAME', 'Assy Name', 'assy name', 'assyname',
-                         'assy_name', 'Assy_name', 'Assembly', 'Assembly Name', 'ASSEMBLY', 'Assembly_Name'],
-                'part_no': ['PARTNO', 'PARTNO.', 'Part No', 'Part Number', 'PartNo',
-                           'partnumber', 'part no', 'partnum', 'PART', 'part', 'Product Code',
-                           'Item Number', 'Item ID', 'Item No', 'item', 'Item'],
-                'description': ['DESCRIPTION', 'Description', 'Desc', 'Part Description',
-                               'ItemDescription', 'item description', 'Product Description',
-                               'Item Description', 'NAME', 'Item Name', 'Product Name'],
-                'Part_per_veh': ['QYT', 'QTY / VEH', 'Qty/Veh', 'Qty Bin', 'Quantity per Bin',
-                                'qty bin', 'qtybin', 'quantity bin', 'BIN QTY', 'BINQTY',
-                                'QTY_BIN', 'QTY_PER_BIN', 'Bin Quantity', 'BIN'],
-                'Type': ['TYPE', 'type', 'Type', 'tyPe', 'Type name'],
-                'line_location': ['LINE LOCATION', 'Line Location', 'line location', 'LINELOCATION',
-                                 'linelocation', 'Line_Location', 'line_location', 'LINE_LOCATION',
-                                 'LineLocation', 'line_loc', 'lineloc', 'LINELOC', 'Line Loc']
-            }
+            # Show column names
+            st.write("**Available Columns:**")
+            cols_display = st.columns(3)
+            for i, col in enumerate(df.columns):
+                with cols_display[i % 3]:
+                    st.write(f"• {col}")
             
-            # Find columns
-            found_columns = {}
-            for key, possible_names in column_mappings.items():
-                found_col = find_column(df, possible_names)
-                if found_col:
-                    found_columns[key] = found_col
+            # Show data preview
+            st.dataframe(df.head(10), use_container_width=True)
             
-            # Display column mapping
-            st.subheader("🔍 Column Detection Results")
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.write("**Found Columns:**")
-                for key, col_name in found_columns.items():
-                    st.write(f"• {key}: `{col_name}`")
+            # Generate labels button
+            st.markdown("---")
+            col1, col2, col3 = st.columns([1, 2, 1])
             
             with col2:
-                st.write("**Missing Columns:**")
-                all_expected = ['ASSLY', 'part_no', 'description', 'Part_per_veh', 'Type', 'line_location']
-                missing = [col for col in all_expected if col not in found_columns]
-                if missing:
-                    for col in missing:
-                        st.write(f"• {col}: ❌ Not found")
-                else:
-                    st.write("✅ All columns detected!")
-            
-            # Check if we have minimum required columns
-            required_columns = ['ASSLY', 'part_no', 'description']
-            missing_required = [col for col in required_columns if col not in found_columns]
-            
-            if missing_required:
-                st.error(f"❌ Missing required columns: {', '.join(missing_required)}")
-                st.info("💡 Please ensure your file contains columns for Assembly, Part Number, and Description")
-            else:
-                # Generate button
-                st.markdown("---")
-                
-                col1, col2, col3 = st.columns([1, 1, 1])
-                with col2:
-                    if st.button("🏷️ Generate Labels", type="primary", use_container_width=True):
-                        with st.spinner("Generating PDF labels..."):
-                            pdf_bytes, detected_columns = generate_sticker_labels(
-                                df, header_width, box1_width, box2_width, box3_width, box4_width,
-                                uploaded_logo, uploaded_custom_image
-                            )
+                if st.button("🏷️ Generate Labels", type="primary", use_container_width=True):
+                    with st.spinner("Generating labels... Please wait..."):
+                        pdf_bytes, found_columns = generate_sticker_labels(
+                            df, 
+                            line_loc_header_width, 
+                            line_loc_box1_width, 
+                            line_loc_box2_width, 
+                            line_loc_box3_width, 
+                            line_loc_box4_width,
+                            uploaded_logo, 
+                            uploaded_first_box_logo
+                        )
+                        
+                        if pdf_bytes:
+                            st.success("✅ Labels generated successfully!")
                             
-                            if pdf_bytes:
-                                st.success("✅ Labels generated successfully!")
+                            # Display column mapping info
+                            if found_columns:
+                                st.subheader("📋 Column Mapping Used")
+                                col_map_display = st.columns(2)
+                                col_items = list(found_columns.items())
+                                mid_point = len(col_items) // 2
                                 
-                                # Generate filename with timestamp
-                                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                                filename = f"instor_labels_{timestamp}.pdf"
+                                with col_map_display[0]:
+                                    for key, value in col_items[:mid_point]:
+                                        st.write(f"**{key.upper()}:** {value}")
                                 
-                                # Download button
+                                with col_map_display[1]:
+                                    for key, value in col_items[mid_point:]:
+                                        st.write(f"**{key.upper()}:** {value}")
+                            
+                            # Download button
+                            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                            filename = f"instor_labels_{timestamp}.pdf"
+                            
+                            col1, col2, col3 = st.columns([1, 2, 1])
+                            with col2:
                                 st.download_button(
-                                    label="📥 Download PDF Labels",
+                                    label="📥 Download Labels PDF",
                                     data=pdf_bytes,
                                     file_name=filename,
                                     mime="application/pdf",
                                     type="primary",
                                     use_container_width=True
                                 )
-                                
-                                # Show generation summary
-                                st.info(f"📊 Generated {len(df)} labels with the following data:")
-                                if detected_columns:
-                                    for key, col_name in detected_columns.items():
-                                        st.caption(f"• {key}: {col_name}")
-                            else:
-                                st.error("❌ Failed to generate PDF labels. Please check your data and try again.")
-        
+                        else:
+                            st.error("❌ Failed to generate labels. Please check your data and try again.")
+            
         except Exception as e:
             st.error(f"❌ Error processing file: {str(e)}")
-            st.info("💡 Please ensure your file is a valid Excel (.xlsx/.xls) or CSV file")
+            st.info("Please make sure your file contains the required columns: ASSLY, Part No, Description")
     
     else:
-        st.info("📁 Please upload a file to begin generating labels")
+        # Instructions when no file is uploaded
+        st.info("👆 Please upload a CSV or Excel file to get started")
         
-        # Show example of expected data format
-        st.subheader("📋 Expected Data Format")
-        st.markdown("""
-        Your file should contain columns with names similar to these:
-        - **Assembly**: ASSLY, Assembly, Assy Name, etc.
-        - **Part Number**: PARTNO, Part No, Part Number, Item, etc.
-        - **Description**: DESCRIPTION, Description, Part Description, etc.
-        - **Quantity per Vehicle**: QTY, QTY/VEH, Qty Bin, BIN QTY, etc. *(optional)*
-        - **Type**: TYPE, Type, etc. *(optional)*
-        - **Line Location**: LINE LOCATION, Line Location, LINELOC, etc. *(optional)*
-        """)
+        st.subheader("📝 Required Columns")
+        st.write("Your file should contain these columns (case-insensitive):")
         
-        # Sample data table
-        sample_data = {
-            'ASSLY': ['ENGINE_ASSEMBLY', 'BRAKE_SYSTEM', 'TRANSMISSION'],
-            'PARTNO': ['ENG001', 'BRK002', 'TRN003'],
-            'DESCRIPTION': ['Main Engine Block', 'Brake Disc Assembly', 'Automatic Transmission'],
-            'QTY': [1, 4, 1],
-            'TYPE': ['Critical', 'Safety', 'Critical'],
-            'LINE LOCATION': ['A1_B2_C3_D4', 'E5_F6_G7_H8', 'I9_J10_K11_L12']
-        }
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write("**Required:**")
+            st.write("• ASSLY (Assembly name)")
+            st.write("• Part No (Part number)")
+            st.write("• Description (Part description)")
         
-        st.subheader("📊 Sample Data Format")
-        st.dataframe(pd.DataFrame(sample_data), use_container_width=True)
-    
+        with col2:
+            st.write("**Optional:**")
+            st.write("• QTY/VEH (Quantity per vehicle)")
+            st.write("• Type (Part type)")
+            st.write("• Line Location (Location data)")
+        
+        st.subheader("📋 Features")
+        feature_cols = st.columns(2)
+        with feature_cols[0]:
+            st.write("✅ Automatic QR code generation")
+            st.write("✅ Custom logo support")
+            st.write("✅ Line location parsing")
+            st.write("✅ Flexible column mapping")
+        
+        with feature_cols[1]:
+            st.write("✅ Professional label formatting")
+            st.write("✅ Date stamping")
+            st.write("✅ Batch processing")
+            st.write("✅ PDF output")
+
     # Footer
     st.markdown("---")
     st.markdown(
         """
         <div style='text-align: center; color: #666;'>
-            <p>🏷️ <strong>Instor Label Generator</strong> | Generate professional QR-coded labels for automotive parts</p>
-            <p><em>Upload your data → Configure settings → Generate PDF labels</em></p>
+            <p>🏷️ <strong>Instor Label Generator</strong> | Built with Streamlit</p>
+            <p><small>Upload your data, configure settings, and generate professional labels with QR codes</small></p>
         </div>
         """, 
         unsafe_allow_html=True
