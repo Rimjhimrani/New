@@ -283,8 +283,8 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
             # FIXED: Exact column widths that sum to content_width
             col_widths_assly = [
                 content_width * 0.25,    # Logo: 25% of content width
-                content_width * 0.25,    # Header: 25% of content width  
-                content_width * 0.50     # Value: 50% of content width
+                content_width * 0.20,    # Header: 25% of content width  
+                content_width * 0.55     # Value: 50% of content width
             ]                            # Total: 100% of content width
             
             col_widths_top = [content_width*0.3, content_width*0.7]                         # Regular 2-column rows
@@ -524,16 +524,16 @@ def main():
         
         # ASSLY row configuration
         st.subheader("🏷️ ASSLY Row Layout")
-        st.markdown("**Fixed ASSLY Row Layout:** Logo (25%) | 'ASSLY' Header (25%) | ASSLY Value (50%) = **100% of Content Width**")
+        st.markdown("**Fixed ASSLY Row Layout:** Logo (25%) | 'ASSLY' Header (20%) | ASSLY Value (55%) = **100% of Content Width**")
         
         # Visual representation
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Logo Box", "25%", help=f"25% of {CONTENT_BOX_WIDTH/cm:.1f}cm = {(CONTENT_BOX_WIDTH*0.25)/cm:.1f}cm")
         with col2:
-            st.metric("ASSLY Header", "25%", help=f"25% of {CONTENT_BOX_WIDTH/cm:.1f}cm = {(CONTENT_BOX_WIDTH*0.25)/cm:.1f}cm")
+            st.metric("ASSLY Header", "20%", help=f"20% of {CONTENT_BOX_WIDTH/cm:.1f}cm = {(CONTENT_BOX_WIDTH*0.25)/cm:.1f}cm")
         with col3:
-            st.metric("ASSLY Value", "50%", help=f"50% of {CONTENT_BOX_WIDTH/cm:.1f}cm = {(CONTENT_BOX_WIDTH*0.50)/cm:.1f}cm")
+            st.metric("ASSLY Value", "55%", help=f"55% of {CONTENT_BOX_WIDTH/cm:.1f}cm = {(CONTENT_BOX_WIDTH*0.50)/cm:.1f}cm")
         
         st.success("✅ ASSLY row perfectly fits within content width!")
         
