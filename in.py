@@ -202,7 +202,7 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
         location_style = ParagraphStyle(name='Location', fontName='Helvetica', fontSize=9, alignment=TA_CENTER, leading=10)
 
         # FIXED: Use exact content width for calculations
-        content_width = CONTENT_BOX_WIDTH  # 9.6cm
+        content_width = CONTENT_BOX_WIDTH  # 9.8cm
         all_elements = []
         today_date = datetime.datetime.now().strftime("%d-%m-%Y")
 
@@ -210,7 +210,7 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
         first_box_logo = None
         if uploaded_first_box_logo is not None:
             # FIXED: Logo box will be 25% of actual content width
-            logo_box_width_cm = (content_width * 0.25) / cm  # Convert back to cm for processing
+            logo_box_width_cm = (content_width * 0.20) / cm  # Convert back to cm for processing
             logo_box_height_cm = 0.7  # ASSLY row height
             
             first_box_logo = process_uploaded_logo(uploaded_first_box_logo, logo_box_width_cm, logo_box_height_cm)
@@ -282,9 +282,9 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
 
             # FIXED: Exact column widths that sum to content_width
             col_widths_assly = [
-                content_width * 0.25,    # Logo: 25% of content width
+                content_width * 0.20,    # Logo: 20% of content width
                 content_width * 0.16,    # Header: 25% of content width  
-                content_width * 0.59     # Value: 50% of content width
+                content_width * 0.64     # Value: 64% of content width
             ]                            # Total: 100% of content width
             
             col_widths_top = [content_width*0.3, content_width*0.7]                         # Regular 2-column rows
@@ -489,7 +489,7 @@ def main():
         uploaded_logo = st.file_uploader(
             "Choose logo file",
             type=['png', 'jpg', 'jpeg'],
-            help="Upload a logo that will appear in the first box (25% width) of the ASSLY row. The logo will be automatically resized to fit perfectly within the content box.",
+            help="Upload a logo that will appear in the first box (20% width) of the ASSLY row. The logo will be automatically resized to fit perfectly within the content box.",
             key="logo_uploader"
         )
         
@@ -502,13 +502,13 @@ def main():
             with col2:
                 st.image(uploaded_logo, caption="Uploaded Logo Preview", width=200)
                 
-            st.info("ℹ️ This logo will be placed in the first box (25% of content width) of each sticker and automatically resized to fit perfectly within the content box.")
+            st.info("ℹ️ This logo will be placed in the first box (20% of content width) of each sticker and automatically resized to fit perfectly within the content box.")
         else:
             st.info("👆 Upload a logo file (PNG, JPG, JPEG) to include it in your stickers.")
             st.markdown("""
             ### Logo Guidelines:
             - **Supported formats**: PNG, JPG, JPEG
-            - **Responsive dimensions**: Logo will fit in 25% of content width × 0.7cm height
+            - **Responsive dimensions**: Logo will fit in 20% of content width × 0.7cm height
             - **Automatic resizing**: Logo will be automatically resized to fit perfectly within content box
             - **Position**: Logo appears in the first box of the ASSLY row
             - **Optional**: You can generate stickers without a logo too
@@ -524,16 +524,16 @@ def main():
         
         # ASSLY row configuration
         st.subheader("🏷️ ASSLY Row Layout")
-        st.markdown("**Fixed ASSLY Row Layout:** Logo (25%) | 'ASSLY' Header (16%) | ASSLY Value (59%) = **100% of Content Width**")
+        st.markdown("**Fixed ASSLY Row Layout:** Logo (20%) | 'ASSLY' Header (16%) | ASSLY Value (59%) = **100% of Content Width**")
         
         # Visual representation
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Logo Box", "25%", help=f"25% of {CONTENT_BOX_WIDTH/cm:.1f}cm = {(CONTENT_BOX_WIDTH*0.25)/cm:.1f}cm")
+            st.metric("Logo Box", "20%", help=f"20% of {CONTENT_BOX_WIDTH/cm:.1f}cm = {(CONTENT_BOX_WIDTH*0.20)/cm:.1f}cm")
         with col2:
             st.metric("ASSLY Header", "16%", help=f"16% of {CONTENT_BOX_WIDTH/cm:.1f}cm = {(CONTENT_BOX_WIDTH*0.16)/cm:.1f}cm")
         with col3:
-            st.metric("ASSLY Value", "59%", help=f"59% of {CONTENT_BOX_WIDTH/cm:.1f}cm = {(CONTENT_BOX_WIDTH*0.59)/cm:.1f}cm")
+            st.metric("ASSLY Value", "64%", help=f"64% of {CONTENT_BOX_WIDTH/cm:.1f}cm = {(CONTENT_BOX_WIDTH*0.64)/cm:.1f}cm")
         
         st.success("✅ ASSLY row perfectly fits within content width!")
         
