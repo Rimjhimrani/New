@@ -524,7 +524,7 @@ def main():
         
         # ASSLY row configuration
         st.subheader("🏷️ ASSLY Row Layout")
-        st.markdown("**Fixed ASSLY Row Layout:** Logo (20%) | 'ASSLY' Header (16%) | ASSLY Value (59%) = **100% of Content Width**")
+        st.markdown("**Fixed ASSLY Row Layout:** Logo (20%) | 'ASSLY' Header (16%) | ASSLY Value (64%) = **100% of Content Width**")
         
         # Visual representation
         col1, col2, col3 = st.columns(3)
