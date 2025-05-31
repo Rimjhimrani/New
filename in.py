@@ -197,8 +197,8 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
         ASSLY_style = ParagraphStyle(
             name='ASSLY',
             fontName='Helvetica',
-            fontSize=10,  # Increased from 9 for better visibility
-            alignment=TA_CENTER,  # FIXED: Changed to CENTER
+            fontSize=9,  # Increased from 9 for better visibility
+            alignment=TA_LEFT,  # FIXED: Changed to CENTER
             leading=11,   # Increased leading for better spacing
             spaceAfter=0,
             wordWrap='CJK',
@@ -209,7 +209,7 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
             name='PART NO',
             fontName='Helvetica-Bold',
             fontSize=12,  # Increased from 10 for better visibility
-            alignment=TA_CENTER,  # FIXED: Changed to CENTER
+            alignment=TA_LEFT,  # FIXED: Changed to CENTER
             leading=13,   # Increased leading for better spacing
             spaceAfter=0,
             wordWrap='CJK',
