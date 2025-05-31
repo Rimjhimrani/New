@@ -275,8 +275,8 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
 
             # Define row heights - KEEPING ORIGINAL HEIGHTS
             ASSLY_row_height = 0.7*cm
-            part_row_height = 0.7*cm
-            desc_row_height = 0.7*cm
+            part_row_height = 0.9*cm
+            desc_row_height = 0.5*cm
             bottom_row_height = 0.6*cm
             location_row_height = 0.6*cm
 
