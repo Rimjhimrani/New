@@ -225,7 +225,7 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
         Part_style = ParagraphStyle(
             name='PART NO',
             fontName='Helvetica-Bold',
-            fontSize=10,
+            fontSize=11,
             alignment=TA_LEFT,
             leading=13,
             spaceAfter=0,
@@ -233,9 +233,9 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
             autoLeading="max"
         )
         desc_style = ParagraphStyle(name='PART DESC', fontName='Helvetica', fontSize=7, alignment=TA_LEFT, leading=8, spaceAfter=0, wordWrap='CJK', autoLeading="max")
-        partper_style = ParagraphStyle(name='Quantity', fontName='Helvetica', fontSize=10, alignment=TA_LEFT, leading=12)
-        Type_style = ParagraphStyle(name='Quantity', fontName='Helvetica', fontSize=10, alignment=TA_LEFT, leading=12)
-        date_style = ParagraphStyle(name='DATE', fontName='Helvetica', fontSize=10, alignment=TA_LEFT, leading=12)
+        partper_style = ParagraphStyle(name='Quantity', fontName='Helvetica', fontSize=9, alignment=TA_LEFT, leading=12)
+        Type_style = ParagraphStyle(name='Quantity', fontName='Helvetica', fontSize=9, alignment=TA_LEFT, leading=12)
+        date_style = ParagraphStyle(name='DATE', fontName='Helvetica', fontSize=9, alignment=TA_LEFT, leading=12)
         location_style = ParagraphStyle(name='Location', fontName='Helvetica', fontSize=8, alignment=TA_CENTER, leading=10)
 
         content_width = CONTENT_BOX_WIDTH
