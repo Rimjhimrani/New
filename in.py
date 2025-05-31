@@ -208,7 +208,7 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
         Part_style = ParagraphStyle(
             name='PART NO',
             fontName='Helvetica-Bold',
-            fontSize=12,  # Increased from 10 for better visibility
+            fontSize= 10,  # Increased from 10 for better visibility
             alignment=TA_LEFT,  # FIXED: Changed to CENTER
             leading=13,   # Increased leading for better spacing
             spaceAfter=0,
@@ -274,11 +274,11 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
                 qr_cell = Paragraph("QR", ParagraphStyle(name='QRPlaceholder', fontName='Helvetica-Bold', fontSize=12, alignment=TA_CENTER))
 
             # FIXED: Increased row heights for better vertical centering
-            ASSLY_row_height = 0.85*cm  # Increased from 0.8cm
-            part_row_height = 0.85*cm   # Increased from 0.8cm
+            ASSLY_row_height = 0.8*cm  # Increased from 0.8cm
+            part_row_height = 0.8*cm   # Increased from 0.8cm
             desc_row_height = 0.5*cm
             bottom_row_height = 0.6*cm
-            location_row_height = 0.6*cm
+            location_row_height = 0.5*cm
 
             # Process line location boxes
             location_box_1 = Paragraph(location_boxes[0], location_style) if location_boxes[0] else ""
