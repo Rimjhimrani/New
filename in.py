@@ -52,7 +52,7 @@ def find_column(df, possible_names):
     return None
 
 def process_uploaded_logo(uploaded_logo, target_width_cm, target_height_cm):
-    """Process uploaded logo to fit the specified dimensions - SIGNIFICANTLY LARGER LOGO"""
+    """Process uploaded logo to fit the specified dimensions - MAXIMUM VISIBILITY"""
     try:
         # Load image from uploaded file
         logo_img = PILImage.open(uploaded_logo)
@@ -71,18 +71,20 @@ def process_uploaded_logo(uploaded_logo, target_width_cm, target_height_cm):
         box_width_px = int(target_width_cm * dpi / 2.54)
         box_height_px = int(target_height_cm * dpi / 2.54)
 
-        # Resize with proper aspect ratio handling
+        # Resize with proper aspect ratio handling - MAXIMUM SIZE
         logo_img = logo_img.resize((box_width_px, box_height_px), PILImage.Resampling.LANCZOS)
 
         # Convert to bytes for ReportLab
         img_buffer = BytesIO()
-        logo_img.save(img_buffer, format='PNG')
+        logo_img.save(img_buffer, format='PNG', quality=100, optimize=False)
         img_buffer.seek(0)
 
-        # SIGNIFICANTLY INCREASED LOGO SIZE for better visibility
+        # MAXIMUM LOGO SIZE - Use almost the entire allocated space
         final_width = target_width_cm
         final_height = target_height_cm
 
+        print(f"Logo dimensions: {final_width}cm x {final_height}cm")  # Debug print
+        
         return Image(img_buffer, width=final_width, height=final_height)
 
     except Exception as e:
@@ -216,9 +218,9 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
             autoLeading="max"
         )
         desc_style = ParagraphStyle(name='PART DESC', fontName='Helvetica', fontSize=7, alignment=TA_LEFT, leading=8, spaceAfter=0, wordWrap='CJK', autoLeading="max")
-        partper_style = ParagraphStyle(name='Quantity', fontName='Helvetica', fontSize=9, alignment=TA_LEFT, leading=12)
-        Type_style = ParagraphStyle(name='Quantity', fontName='Helvetica', fontSize=9, alignment=TA_LEFT, leading=12)
-        date_style = ParagraphStyle(name='DATE', fontName='Helvetica', fontSize=9, alignment=TA_LEFT, leading=12)
+        partper_style = ParagraphStyle(name='Quantity', fontName='Helvetica', fontSize=10, alignment=TA_LEFT, leading=12)
+        Type_style = ParagraphStyle(name='Quantity', fontName='Helvetica', fontSize=10, alignment=TA_LEFT, leading=12)
+        date_style = ParagraphStyle(name='DATE', fontName='Helvetica', fontSize=10, alignment=TA_LEFT, leading=12)
         location_style = ParagraphStyle(name='Location', fontName='Helvetica', fontSize=8, alignment=TA_CENTER, leading=10)
 
         # FIXED: Use exact content width for calculations
@@ -226,16 +228,16 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
         all_elements = []
         today_date = datetime.datetime.now().strftime("%d-%m-%Y")
 
-        # Handle uploaded logo for first box - SIGNIFICANTLY LARGER LOGO
+        # Handle uploaded logo for first box - MAXIMUM VISIBILITY LOGO
         first_box_logo = None
         if uploaded_first_box_logo is not None:
-            # MUCH LARGER LOGO DIMENSIONS - Taking up most of the box space
-            logo_box_width_cm = (content_width * 0.22) / cm  # Increased from 0.24 to use more width
-            logo_box_height_cm = 0.72  # Increased from 0.75 to use more height - almost full box height
+            # MAXIMUM LOGO DIMENSIONS - Use almost the entire box space
+            logo_box_width_cm = (content_width * 0.24) / cm  # Use 24% of content width (almost full box width)
+            logo_box_height_cm = 0.8  # Use 0.8cm height (almost full box height for ASSLY row)
 
             first_box_logo = process_uploaded_logo(uploaded_first_box_logo, logo_box_width_cm, logo_box_height_cm)
             if first_box_logo:
-                st.success("✅ Using your uploaded logo for first box - MUCH LARGER SIZE")
+                st.success(f"✅ Using your uploaded logo for first box - MAXIMUM SIZE: {logo_box_width_cm:.2f}cm x {logo_box_height_cm:.2f}cm")
             else:
                 st.error("❌ Failed to process uploaded logo")
 
@@ -273,8 +275,8 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
             else:
                 qr_cell = Paragraph("QR", ParagraphStyle(name='QRPlaceholder', fontName='Helvetica-Bold', fontSize=12, alignment=TA_CENTER))
 
-            # INCREASED ROW HEIGHTS to accommodate larger logo
-            ASSLY_row_height = 0.85*cm  # Increased to accommodate larger logo
+            # MAXIMUM ROW HEIGHT to accommodate maximum logo
+            ASSLY_row_height = 0.85*cm  # Keep row height to accommodate maximum logo
             part_row_height = 0.8*cm   
             desc_row_height = 0.5*cm
             bottom_row_height = 0.6*cm
@@ -325,7 +327,7 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
             middle_table = Table(unified_table_data[3:6], colWidths=col_widths_middle, rowHeights=row_heights[3:6])
             bottom_table = Table([unified_table_data[6]], colWidths=col_widths_bottom, rowHeights=[row_heights[6]])
 
-            # FIXED: Apply styles with MIDDLE vertical alignment for better centering
+            # FIXED: Apply styles with MIDDLE vertical alignment for better centering - MINIMAL PADDING FOR MAXIMUM LOGO SPACE
             assly_style = [
                 ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
                 ('FONTNAME', (1, 0), (1, 0), 'Helvetica-Bold'),  # ASSLY header bold
@@ -335,10 +337,10 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
                 ('ALIGN', (2, 0), (2, 0), 'CENTER'),  # FIXED: Value CENTER aligned
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),  # FIXED: MIDDLE alignment for vertical centering
                 ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('LEFTPADDING', (0, 0), (-1, -1), 2),  # Reduced padding to give more space to logo
-                ('RIGHTPADDING', (0, 0), (-1, -1), 2),
-                ('TOPPADDING', (0, 0), (-1, -1), 1),  # Reduced top padding
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 1),  # Reduced bottom padding
+                ('LEFTPADDING', (0, 0), (-1, -1), 1),  # MINIMAL padding for maximum logo space
+                ('RIGHTPADDING', (0, 0), (-1, -1), 1),
+                ('TOPPADDING', (0, 0), (-1, -1), 1),  # MINIMAL top padding
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 1),  # MINIMAL bottom padding
             ]
 
             top_style = [
@@ -409,7 +411,7 @@ def generate_sticker_labels(df, line_loc_header_width, line_loc_box1_width,
         doc.build(all_elements, onFirstPage=draw_border, onLaterPages=draw_border)
 
         progress_bar.empty()
-        st.success(f"✅ Successfully generated {total_rows} sticker labels with LARGER LOGOS!")
+        st.success(f"✅ Successfully generated {total_rows} sticker labels with MAXIMUM VISIBILITY LOGOS!")
 
         # Read the generated PDF
         with open(output_pdf_path, 'rb') as pdf_file:
@@ -508,7 +510,7 @@ def main():
         uploaded_logo = st.file_uploader(
             "Choose logo file",
             type=['png', 'jpg', 'jpeg'],
-            help="Upload a logo that will appear MUCH LARGER in the first box (25% width) of the ASSLY row. The logo will be automatically resized to fit perfectly and centered within the content box.",
+            help="Upload a logo that will appear with MAXIMUM VISIBILITY in the first box (25% width) of the ASSLY row. The logo will be automatically resized to use almost the entire allocated space for maximum visibility.",
             key="logo_uploader"
         )
 
@@ -521,13 +523,13 @@ def main():
             with col2:
                 st.image(uploaded_logo, caption="Uploaded Logo Preview", width=200)
 
-            st.info("ℹ️ This logo will be placed in the first box (25% of content width) of each sticker, made SIGNIFICANTLY LARGER for maximum visibility (22% width × 0.72cm height), and centered both horizontally and vertically.")
+            st.info("ℹ️ This logo will be placed in the first box (25% of content width) of each sticker with MAXIMUM VISIBILITY (24% width × 0.8cm height), using almost the entire allocated space, and centered both horizontally and vertically.")
         else:
             st.info("👆 Upload a logo file (PNG, JPG, JPEG) to include it in your stickers.")
             st.markdown("""
             ### Logo Guidelines:
             - **Supported formats**: PNG, JPG, JPEG
-            - **SIGNIFICANTLY LARGER SIZE**: Logo will be much bigger and more visible (22% width × 0.72cm height)
+            - **MAXIMUM VISIBILITY**: Logo will use almost the entire allocated box space (24% width × 0.8cm height)
             - **Perfect centering**: Logo will be centered both horizontally and vertically
             - **Position**: Logo appears in the first box of the ASSLY row
             - **Optional**: You can generate stickers without a logo too
@@ -538,106 +540,110 @@ def main():
         st.header("⚙️ Configuration Settings")
 
         # Content box info
-        st.subheader("📏 Content Box Dimensions")
-        st.info(f"**Content Box Width**: {CONTENT_BOX_WIDTH/cm:.1f}cm | **Height**: {CONTENT_BOX_HEIGHT/cm:.1f}cm")
+        st.subheader("📏 Layout Information")
+        st.info(f"**Content Box Dimensions**: {CONTENT_BOX_WIDTH/cm:.1f}cm × {CONTENT_BOX_HEIGHT:.1f}cm")
 
-        # ASSLY row configuration
-        st.subheader("🏷️ ASSLY Row Layout")
-        st.markdown("**Fixed ASSLY Row Configuration:**")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Logo Box", "25%")
-        with col2:
-            st.metric("Header", "15%")
-        with col3:
-            st.metric("Value", "60%")
-
-        # Line location configuration
-        st.subheader("📍 Line Location Configuration")
-        st.markdown("**Configure the width distribution for Line Location boxes:**")
+        # Line Location Configuration
+        st.subheader("📍 Line Location Box Width Configuration")
+        st.markdown("Configure the width percentages for line location boxes (must total 100%):")
 
         col1, col2, col3, col4, col5 = st.columns(5)
 
         with col1:
             line_loc_header_width = st.slider(
                 "Header Width (%)",
-                min_value=0.1,
-                max_value=0.5,
-                value=0.25,
-                step=0.05,
-                help="Width of the 'LINE LOCATION' header"
-            )
+                min_value=10,
+                max_value=50,
+                value=25,
+                step=5,
+                help="Width percentage for 'LINE LOCATION' header"
+            ) / 100
 
         with col2:
             line_loc_box1_width = st.slider(
                 "Box 1 Width (%)",
-                min_value=0.1,
-                max_value=0.4,
-                value=0.1875,
-                step=0.0125,
-                help="Width of the first location box"
-            )
+                min_value=5,
+                max_value=40,
+                value=20,
+                step=5,
+                help="Width percentage for first location box"
+            ) / 100
 
         with col3:
             line_loc_box2_width = st.slider(
                 "Box 2 Width (%)",
-                min_value=0.1,
-                max_value=0.4,
-                value=0.1875,
-                step=0.0125,
-                help="Width of the second location box"
-            )
+                min_value=5,
+                max_value=40,
+                value=20,
+                step=5,
+                help="Width percentage for second location box"
+            ) / 100
 
         with col4:
             line_loc_box3_width = st.slider(
                 "Box 3 Width (%)",
-                min_value=0.1,
-                max_value=0.4,
-                value=0.1875,
-                step=0.0125,
-                help="Width of the third location box"
-            )
+                min_value=5,
+                max_value=40,
+                value=20,
+                step=5,
+                help="Width percentage for third location box"
+            ) / 100
 
         with col5:
             line_loc_box4_width = st.slider(
                 "Box 4 Width (%)",
-                min_value=0.1,
-                max_value=0.4,
-                value=0.1875,
-                step=0.0125,
-                help="Width of the fourth location box"
-            )
+                min_value=5,
+                max_value=40,
+                value=15,
+                step=5,
+                help="Width percentage for fourth location box"
+            ) / 100
 
-        # Check if total width is 100%
-        total_width = line_loc_header_width + line_loc_box1_width + line_loc_box2_width + line_loc_box3_width + line_loc_box4_width
-        if abs(total_width - 1.0) > 0.001:
-            st.warning(f"⚠️ Total width is {total_width:.1%}. Adjust sliders to make it 100%.")
+        # Check if percentages total 100%
+        total_percentage = (line_loc_header_width + line_loc_box1_width + 
+                          line_loc_box2_width + line_loc_box3_width + line_loc_box4_width) * 100
+
+        if abs(total_percentage - 100) > 0.1:
+            st.warning(f"⚠️ Width percentages total {total_percentage:.1f}% - should equal 100%")
         else:
-            st.success("✅ Total width is 100%")
+            st.success(f"✅ Width percentages total {total_percentage:.1f}%")
 
-    # Generate Button
-    st.header("🎯 Generate Sticker Labels")
+        # Display current configuration
+        st.subheader("📊 Current Configuration")
+        config_df = pd.DataFrame({
+            'Component': ['Header', 'Box 1', 'Box 2', 'Box 3', 'Box 4'],
+            'Width (%)': [f"{w*100:.0f}%" for w in [line_loc_header_width, line_loc_box1_width, 
+                         line_loc_box2_width, line_loc_box3_width, line_loc_box4_width]],
+            'Width (cm)': [f"{w*CONTENT_BOX_WIDTH/cm:.2f}cm" for w in [line_loc_header_width, line_loc_box1_width, 
+                          line_loc_box2_width, line_loc_box3_width, line_loc_box4_width]]
+        })
+        st.dataframe(config_df, use_container_width=True, hide_index=True)
 
+    # Main action section
+    st.markdown("---")
+    st.header("🚀 Generate Stickers")
+
+    # Check if we have both data and settings
     if st.session_state.uploaded_file is not None:
-        col1, col2, col3 = st.columns([2, 1, 2])
-        with col2:
-            generate_button = st.button(
-                "🚀 Generate Stickers",
-                type="primary",
-                use_container_width=True,
-                help="Click to generate sticker labels with your uploaded data"
-            )
+        # Show file info
+        st.success(f"📊 Data file: `{st.session_state.uploaded_file.name}` ready")
 
-        if generate_button:
-            try:
-                # Read the data file again
-                if st.session_state.uploaded_file.name.endswith('.csv'):
-                    df = pd.read_csv(st.session_state.uploaded_file)
-                else:
-                    df = pd.read_excel(st.session_state.uploaded_file)
+        if st.session_state.uploaded_logo is not None:
+            st.success(f"🖼️ Logo file: `{st.session_state.uploaded_logo.name}` ready (MAXIMUM VISIBILITY)")
+        else:
+            st.info("ℹ️ No logo uploaded - stickers will be generated without logo")
 
-                # Generate sticker labels
-                with st.spinner("🔄 Generating sticker labels... Please wait..."):
+        # Generate button
+        if st.button("🏷️ Generate Sticker Labels", type="primary", use_container_width=True):
+            with st.spinner("🔄 Generating sticker labels... Please wait..."):
+                try:
+                    # Read the data file again
+                    if st.session_state.uploaded_file.name.endswith('.csv'):
+                        df = pd.read_csv(st.session_state.uploaded_file)
+                    else:
+                        df = pd.read_excel(st.session_state.uploaded_file)
+
+                    # Generate stickers
                     pdf_data, filename = generate_sticker_labels(
                         df,
                         line_loc_header_width,
@@ -648,44 +654,49 @@ def main():
                         st.session_state.uploaded_logo
                     )
 
-                if pdf_data:
-                    # Success - offer download
-                    st.success("🎉 Sticker labels generated successfully!")
+                    if pdf_data:
+                        # Create download button
+                        st.download_button(
+                            label="📥 Download Sticker Labels PDF",
+                            data=pdf_data,
+                            file_name=filename,
+                            mime="application/pdf",
+                            type="primary",
+                            use_container_width=True
+                        )
 
-                    # Download button
-                    st.download_button(
-                        label="📥 Download PDF",
-                        data=pdf_data,
-                        file_name=filename,
-                        mime="application/pdf",
-                        type="primary",
-                        use_container_width=True
-                    )
+                        st.balloons()
+                        st.success("🎉 Sticker labels generated successfully!")
 
-                    # Show generation info
-                    st.info(f"📊 Generated {len(df)} sticker labels with QR codes")
+                        # Show generation summary
+                        with st.expander("📋 Generation Summary", expanded=True):
+                            st.markdown(f"""
+                            **File**: `{filename}`  
+                            **Total Stickers**: {len(df)}  
+                            **Logo**: {'✅ Included (MAXIMUM VISIBILITY)' if st.session_state.uploaded_logo else '❌ Not included'}  
+                            **Content Box**: {CONTENT_BOX_WIDTH/cm:.1f}cm × {CONTENT_BOX_HEIGHT:.1f}cm  
+                            **Generated**: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+                            """)
 
-                else:
-                    st.error("❌ Failed to generate sticker labels. Please check your data and try again.")
+                    else:
+                        st.error("❌ Failed to generate stickers. Please check your data and try again.")
 
-            except Exception as e:
-                st.error(f"❌ Error during generation: {str(e)}")
-                st.info("💡 Please check your data format and try again.")
+                except Exception as e:
+                    st.error(f"❌ Error during generation: {str(e)}")
+                    st.info("💡 Please check your data format and try again.")
 
     else:
-        st.info("👆 Please upload a data file first to generate stickers.")
+        st.warning("⚠️ Please upload a data file first to generate stickers.")
+        st.info("👆 Go to the 'Upload Data' tab to get started.")
 
     # Footer
     st.markdown("---")
-    st.markdown(
-        """
-        <div style='text-align: center; color: #666;'>
-            <p>🏷️ Professional Sticker Label Generator with QR Codes</p>
-            <p>Built with Streamlit • ReportLab • PIL</p>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    st.markdown("""
+    <div style='text-align: center; color: #666; font-size: 0.9em;'>
+        🏷️ Sticker Label Generator with QR Codes | 
+        Features: MAXIMUM VISIBILITY Logos, Automatic Column Detection, Professional Layout
+    </div>
+    """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
